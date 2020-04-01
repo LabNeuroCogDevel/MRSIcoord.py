@@ -1,0 +1,17 @@
+* Porting
+** ML
+   #+BEGIN_SRC matlab
+   type /home/ni_tools/matlab_toolboxes/sid3_MRRC/LoadSInD.m
+   siname = '/Volumes/Zeus/Finn/7Tpilot/subjs/nr/raw/20170802LunaTest/Jref24x24/siarray.1.1'
+   sires=24,sipts=1024, sisliceno=1 
+   offsetptr=9
+   fp1 = fopen(siname,'r');
+   fseek(fp1,offsetptr,'bof');
+   SI = fread(fp1,[2*sipts sires*sires],'float');
+   fclose(fp1);
+   numel(SI) == 1179648
+   size(SI) == [2048, 576]
+   SI(1000-1,300-1) == -85.4320
+   SI(1000,300) == 83.4170
+   SI(1001,301) == -20.6799
+   #+END_SRC
