@@ -60,6 +60,23 @@ class SIArray:
         self.kspace = kspace
 
 
+class Offsets:
+    def __init__(self, vo=0, ho=0, angle=0):
+        """ offsets
+        @param vo vertical offset
+        @param ho horizons offset
+        @param angle in radians
+        """
+        self.vo = vo
+        self.ho = ho
+        self.angle = angle
+        if (vo != 0 or ho != 0 or angle != 0):
+            raise Warning('untested offsets/angle rotation!')
+        rotm1 = [np.cos(angle), np.sin(angle),  vo]
+        rotm2 = [-np.sin(angle), np.cos(angle), ho]
+        self.rotm = np.vstack((rotm1, rotm2))
+
+
 class Scout:
     def __init__(self, scout: str, res=216):
         self.fname = scout
@@ -70,7 +87,7 @@ class Scout:
             # fp1 = fopen(fname,'r');
             # scout = fread(fp1,[res res],'float');
 
-    def RegenCoor(self, pos, vo=0, ho=0, angle=0):
+    def RegenCoor(self, pos, offsets=Offsets()):
         """
         optional rotate coords (default to not) and put position into scout space
         @param pos like [[row, column],...]
@@ -84,11 +101,10 @@ class Scout:
         #  so since reconstruction is still done in MATLAB, need MATLAB orientation
         res = self.res
         pos = res + 2 - pos
-        # create transformation matrix, 2rows x 3columns
-        rotm1 = [np.cos(angle), np.sin(angle),  vo]
-        rotm2 = [-np.sin(angle), np.cos(angle), ho]
 
-        rotm = np.vstack((rotm1, rotm2))
+        # create transformation matrix, 2rows x 3columns
+        rotm = offsets.rotm
+
         thirdrow = np.ones(pos.shape[0])
         postemp = np.vstack((pos.T, thirdrow))
         lastrow = [0, 0, 1]

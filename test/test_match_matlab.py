@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.io import loadmat
-from siarray import Scout, SIArray, RegenCoor
+from siarray import Scout, SIArray
 
 
 # ## test little-endian float32
