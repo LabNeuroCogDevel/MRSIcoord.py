@@ -35,3 +35,11 @@ def test_retpos():
     # see generate_mat.m
     ml_rp = loadmat('test/data/matlab/retpos.mat')['retpos']
     assert (retpos == ml_rp).all()
+
+def test_shiftmap():
+    SI = SIArray('test/data/siarray.1.1')
+    SI.IFFTData()
+    shiftmat = SI.SpatialTransform2D()
+    # see generate_mat.m
+    ml_sm = loadmat('test/data/matlab/shiftmat.mat')['SHIFTMAT']
+    assert abs(ml_sm - shiftmat).max() < 10**-10

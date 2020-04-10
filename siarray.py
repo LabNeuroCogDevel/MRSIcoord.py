@@ -3,6 +3,16 @@ from numpy import real, imag, zeros
 from numpy.fft import fftshift, ifft2
 
 
+class Shifts:
+    """ class to easily pass around default shift settings """
+    def __init__(self, shiftvolume=1, vertshift=1.49464, horzshift=-1.60098):
+        # toggleon=1, hanningon=1, rotangle=0,
+        # flipvert=0, fliphorz=0, flipslices=0,
+        self.shiftvolume = shiftvolume
+        self.vertshift = vertshift
+        self.horzshift = horzshift
+
+
 class SIArray:
     def __init__(self, siname: str, res=(24, 24), pts=1024, sliceno=1):
         self.fname = siname
@@ -58,6 +68,23 @@ class SIArray:
             kspace[:, :, self.pts + a] = imag(temp)
 
         self.kspace = kspace
+
+    def SpatialTransform2D(self, shift=Shifts()):
+        """
+        @param shift - how to manipulate
+        @return SHIFTMAT (N.B. transpose at the end to match matlab)
+        """
+        # as saved by kspace.1.1
+        kspSI = self.kspace.reshape(self.rows*self.cols, self.pts*2).T
+        # kspSI.shape == (2048, 576)
+        SHIFTMAT = np.ones((self.rows, self.cols)) + np.complex(0, 0)
+        if (shift.shiftvolume):
+            r = (np.arange(self.rows)-self.rows/2) * shift.horzshift/self.rows
+            c = (np.arange(self.cols)-self.cols/2) * shift.vertshift/self.cols
+            rr, cc = np.meshgrid(r, c)
+            angle = (rr + cc) * 2 * np.pi
+            SHIFTMAT = np.exp(angle*complex(0,1))
+        return(SHIFTMAT.T)
 
 
 class Offsets:

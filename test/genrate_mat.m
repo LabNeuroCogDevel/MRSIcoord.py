@@ -70,18 +70,18 @@ save('test/data/matlab/retpos.mat', 'retpos')
 
 %% make spectrum - ReconCoordinates3.m
 
-%%%%%
-%% ENTER HERE 20200410
-% -- will need to follow to SpatialTransform2D.m
-%%%%%
-
 % in function looks like posltemp comes from
 % [posltemp,posrtemp]=RegenCoor(scout,scoutf,posl,posr);
 posltemp = retpos
+points=np
+rows=24
+cols=24
 
+numrecon = size(posltemp,2);
 posltemp = res + 2 - posltemp;
 posltemp = posltemp';
-poslp(1:numrecon,1:2)=posltemp(1:numrecon,1:2)
+poslp(1:numrecon,1:2)=posltemp(1:numrecon,1:2);
+
 % convert the offsets to fractional pixel shifts
 for m=1:numrecon
     poslpp(m,1) = (poslp(m,1)-1-(res/2))*(rows/res);
@@ -89,16 +89,107 @@ for m=1:numrecon
 end
 poslpp = -1*poslpp + 0.5;   %half px shift in both r and c dxns
 
+
+%% SI = SpatialTransform2D(SI);
+toggleon = 1
+hanningon = 1
+rotangle = 0
+flipvert= 0
+fliphorz= 0
+flipslices=0
+
+% setup the kspace shifting
+shiftvolume = 1;
+vertshift = 1.49464;
+horzshift = -1.60098;
+
+SHIFTMAT=zeros(rows,cols);
+if (shiftvolume==1)
+    for mi=1:rows;for n=1:cols
+            angle = (((mi-1)-(rows/2))*horzshift/rows) + (((n-1)-(cols/2))*vertshift/cols);          
+            angle = angle * 2 * pi;
+            SHIFTMAT(mi,n) = exp(i*angle);          
+    end;end
+else
+    SHIFTMAT(1:rows,1:cols) = 1+0*i;
+end
+save('test/data/matlab/shiftmat.mat', 'SHIFTMAT')
+
+
+%% back to ReconCoordinates3.m
+
 for m=1:numrecon
     % do the reconstruction
     % convert the data matrix to appropriate formt
 
     % read kspace -- created above
-    outputfilename = CreateName(7); 
+    %outputfilename = CreateName(7); 
+    outputfilename = '/Volumes/Hera/Projects/7TBrainMech/subjs/11743_20190802/slice_PFC/MRSI_roi/raw//kspace.1.1';
     fp2 = fopen(outputfilename,'r');
     SI = fread(fp2,[points*2 rows*cols],'float');
     fclose(fp2);
-    SI = SpatialTransform2D(SI);
+
+
+    totspatial = rows*cols;
+    totpts = 2* points;
+
+    for r=1
+        for s=1
+            % get the data 
+            % read kspace
+            kspSI = SI
+
+            % convert to complex data
+            data1(1:points,1:totspatial)= kspSI(1:points,1:totspatial) + i*kspSI(points+1:points*2,1:totspatial);
+
+
+            % setup matrix and do 2D transform spatially spectral point by spectral point
+            for a=1:points
+
+                % reorganize the data
+                for b=1:cols
+                    for c=1:rows
+                        ptr = c+((b-1)*rows);
+                        data2(c,b)=data1(a,ptr);
+                    end
+                end
+
+                % voxel shift the data 
+                data2 = data2.*SHIFTMAT;
+                data2 = fft2((data2));
+
+                % rotate images
+                if (rotangle~=0)
+                    data2 = imrotate(data2,rotangle,'nearest','crop');
+                end
+
+                % put the data back
+                for b=1:cols
+                    for c=1:rows
+                        ptr = c+((b-1)*rows);
+                        data1(a,ptr) = (data2(c,b));
+                    end
+
+                end
+            end
+
+            SI(1:points,1:totspatial) = real(data1(1:points,1:totspatial));
+            SI(points+1:points*2,1:totspatial) = imag(data1(1:points,1:totspatial));
+            clear data1;
+            clear data2;
+            SetWorking(1);
+
+        end
+    end
+    
+        
+        
+        
+    
+    
+    
+    
+    % resume 
     ptr = (rows*cols + rows)/2.0 +1;
     spectrum(1:points*2) = SI(1:points*2,ptr);
     %totalshift = (poslpp(m,1)+poslpp(m,2))*3.14159;
