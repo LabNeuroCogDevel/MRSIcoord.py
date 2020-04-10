@@ -24,7 +24,7 @@ fclose(fp1);
 save('test/data/matlab/si.mat', 'SI')
 
 
-%% K space
+%% K space -- IFFTData.m would write kspace.1.1 (currcvr,curslice)
 fp1 = fopen('test/data/siarray.1.1','r');
 SIData=zeros(24,24,1024);
 np=1024;
@@ -67,6 +67,64 @@ lastrow = [0 0 1];
 rotmtemp = [rotm;lastrow];
 retpos = rotmtemp\posltemp;
 save('test/data/matlab/retpos.mat', 'retpos')
+
+%% make spectrum - ReconCoordinates3.m
+
+%%%%%
+%% ENTER HERE 20200410
+% -- will need to follow to SpatialTransform2D.m
+%%%%%
+
+% in function looks like posltemp comes from
+% [posltemp,posrtemp]=RegenCoor(scout,scoutf,posl,posr);
+posltemp = retpos
+
+posltemp = res + 2 - posltemp;
+posltemp = posltemp';
+poslp(1:numrecon,1:2)=posltemp(1:numrecon,1:2)
+% convert the offsets to fractional pixel shifts
+for m=1:numrecon
+    poslpp(m,1) = (poslp(m,1)-1-(res/2))*(rows/res);
+    poslpp(m,2) = (poslp(m,2)-1-(res/2))*(cols/res);
+end
+poslpp = -1*poslpp + 0.5;   %half px shift in both r and c dxns
+
+for m=1:numrecon
+    % do the reconstruction
+    % convert the data matrix to appropriate formt
+
+    % read kspace -- created above
+    outputfilename = CreateName(7); 
+    fp2 = fopen(outputfilename,'r');
+    SI = fread(fp2,[points*2 rows*cols],'float');
+    fclose(fp2);
+    SI = SpatialTransform2D(SI);
+    ptr = (rows*cols + rows)/2.0 +1;
+    spectrum(1:points*2) = SI(1:points*2,ptr);
+    %totalshift = (poslpp(m,1)+poslpp(m,2))*3.14159;
+    (poslpp(m,1)+poslpp(m,2))
+    disp('left, and in 256 res coords');
+    poslp(m,:)
+    disp('for 240 res coords, rather than 256 ');
+    (240/256)*poslp(m,:)
+    disp('fraction px shift ')
+    poslpp(m,:)
+    totalshift = 0;
+
+    srd(1:points) = spectrum(1:points);
+    sid(1:points) = spectrum(points+1:points*2);
+    scd = srd + i*sid;
+    scd = scd * exp(-i*totalshift);
+    spectrum(1:points) = real(scd);
+    spectrum(points+1:points*2) = imag(scd);
+
+    % PlotSpectrum(spectrum);
+    filename = cat(2,dirname,typename,ext);
+    fp11 = fopen(filename,'w');
+    fwrite(fp11,spectrum,'float');
+    fclose(fp11);
+end
+
 
 %% Not used - extracted from RegenCoord 
 % %generate the rotated and translated scout again
