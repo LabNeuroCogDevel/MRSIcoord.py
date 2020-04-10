@@ -1,5 +1,6 @@
+import numpy as np
 from scipy.io import loadmat
-from siarray import Scout, SIArray
+from siarray import Scout, SIArray, RegenCoor
 
 
 # ## test little-endian float32
@@ -25,3 +26,12 @@ def test_kspace():
     # see generate_mat.m
     ml_k = loadmat('test/data/matlab/kspace.mat')['kspace']
     assert abs(ml_k - SI.kspace).max() < 10**-10
+
+
+def test_retpos():
+    pos = np.array([[130, 99], [121, 94]])
+    scout = Scout('test/data/mprage_middle.mat')
+    retpos = scout.RegenCoor(pos)
+    # see generate_mat.m
+    ml_rp = loadmat('test/data/matlab/retpos.mat')['retpos']
+    assert (retpos == ml_rp).all()
