@@ -2,6 +2,8 @@ import numpy as np
 from scipy.io import loadmat
 from siarray import Scout, SIArray
 
+def belowthres(x,y,thres=10**-10):
+    return(abs(x - y).max() < thres)
 
 # ## test little-endian float32
 # N.B. matlab's save highest precision is 16bit?
@@ -25,7 +27,7 @@ def test_kspace():
     SI.IFFTData()
     # see generate_mat.m
     ml_k = loadmat('test/data/matlab/kspace.mat')['kspace']
-    assert abs(ml_k - SI.kspace).max() < 10**-10
+    assert belowthres(ml_k, SI.kspace)
 
 
 def test_retpos():
@@ -39,7 +41,15 @@ def test_retpos():
 def test_shiftmap():
     SI = SIArray('test/data/siarray.1.1')
     SI.IFFTData()
-    shiftmat = SI.SpatialTransform2D()
+    shiftmat = SI.ShiftMap()
     # see generate_mat.m
     ml_sm = loadmat('test/data/matlab/shiftmat.mat')['SHIFTMAT']
-    assert abs(ml_sm - shiftmat).max() < 10**-10
+    assert belowthres(ml_sm, shiftmat)
+
+def test_spatialtransform():
+    pass
+    SI = SIArray('test/data/siarray.1.1')
+    st = SI.SpatialTransform2D()
+    # see generate_mat.m
+    ml_st = loadmat('test/data/matlab/spatialtransform2d.mat')['SI']
+    assert belowthres(ml_st, st, 10**-2) # PROBLEM?!

@@ -1,51 +1,22 @@
 * Porting
-** MatLab
-*** readSI
-**** 2D
-    #+BEGIN_SRC matlab
-    type /home/ni_tools/matlab_toolboxes/sid3_MRRC/LoadSInD.m
-    siname = '/Volumes/Zeus/Finn/7Tpilot/subjs/nr/raw/20170802LunaTest/Jref24x24/siarray.1.1'
-    sires=24,sipts=1024, sisliceno=1 
-    offsetptr=9
-    fp1 = fopen(siname,'r');
-    fseek(fp1,offsetptr,'bof');
-    SI = fread(fp1,[2*sipts sires*sires],'float');
-    fclose(fp1);
-    numel(SI) == 1179648
-    size(SI) == [2048, 576]
-    SI(1000-1,300-1) == -85.4320
-    SI(1000,300) == 83.4170
-    SI(1001,301) == -20.6799
-    #+END_SRC
-   
-**** 3D 
-   #+BEGIN_SRC matlab :session
-   fp1 = fopen('siarray.1.1','r');
-   SIData=zero(24,24,1024)
-   np=1024;
-   for a=1:24; for b=1:24;
-           datar(1:np) = fread(fp1,[np],'float');
-           datai(1:np) = fread(fp1,[np],'float');
-           SIData(a,b,1:np) = datar(1:np) + i*datai(1:np);
-   end; end
-   fclose(fp1);
-   SIData(15,13,82) == -1.0690e+02 - 5.3431e+01i
-   SIData(20,6,507) == 2.2938e+02 + 1.8219e+02i
+** Differences
+*** SpatialTransform
+    ShiftMap is < 10^{-10} different. but sptial map differenes appear at thresholds below 10*-2!
+    
+    This is real and complex shifted kspace stacked (real first 1024 rows).
+
+    Here's thresolded by 10^{-4}
+    [[file:imgs/spatialTransform_MLvsPY_diff_gt_10e-04.png]]
+
+    Here's and more permissive by 10^-3
+    [[file:imgs/spatialTransform_MLvsPY_diff_gt_10e-03.png]]
+** Comparing python and matlab
+   ~test/genrate_mat.m~ runs through the spectrum pipeline and saves out matfiles to test the python code against.
+   #+BEGIN_SRC bash
+  python -m pytest
    #+END_SRC
-*** FFT
-#+BEGIN_SRC python :session
-x = np.linspace(1,25,25).reshape(5,5).T
-y = ifft2(x)
-#+END_SRC
-#+BEGIN_SRC matlab
-x = reshape(1:25,[5,5])
-y= ifft2(x)
-#+END_SRC
-
-
-
-
-** test data
+  
+   Example data from
 #+BEGIN_SRC bash
 find /Volumes/Hera/Projects/7TBrainMech/subjs/11743_20190802/slice_PFC/MRSI_roi/ -maxdepth 2 -iname 'rorig.nii' -or -iname 'mprage_middle.mat' -or -iname 'siarray.1.1' |
  xargs -I{} cp {} test/data/

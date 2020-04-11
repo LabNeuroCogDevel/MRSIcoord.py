@@ -5,12 +5,14 @@ from numpy.fft import fftshift, ifft2
 
 class Shifts:
     """ class to easily pass around default shift settings """
-    def __init__(self, shiftvolume=1, vertshift=1.49464, horzshift=-1.60098):
-        # toggleon=1, hanningon=1, rotangle=0,
+    def __init__(self, shiftvolume=1, vertshift=1.49464, horzshift=-1.60098,
+                 rotangle=0):
+        # toggleon=1, hanningon=1,
         # flipvert=0, fliphorz=0, flipslices=0,
         self.shiftvolume = shiftvolume
         self.vertshift = vertshift
         self.horzshift = horzshift
+        self.rotangle = rotangle
 
 
 class SIArray:
@@ -22,6 +24,7 @@ class SIArray:
         self.pts = pts
         self.sliceno = sliceno
         self.data = None
+        self.kspace = None
 
         # NB - only ever tested with rows=cols
         if(self.rows != self.cols):
@@ -69,14 +72,12 @@ class SIArray:
 
         self.kspace = kspace
 
-    def SpatialTransform2D(self, shift=Shifts()):
+    def ShiftMap(self, shift=Shifts()):
         """
         @param shift - how to manipulate
         @return SHIFTMAT (N.B. transpose at the end to match matlab)
         """
         # as saved by kspace.1.1
-        kspSI = self.kspace.reshape(self.rows*self.cols, self.pts*2).T
-        # kspSI.shape == (2048, 576)
         SHIFTMAT = np.ones((self.rows, self.cols)) + np.complex(0, 0)
         if (shift.shiftvolume):
             r = (np.arange(self.rows)-self.rows/2) * shift.horzshift/self.rows
@@ -85,6 +86,39 @@ class SIArray:
             angle = (rr + cc) * 2 * np.pi
             SHIFTMAT = np.exp(angle*complex(0,1))
         return(SHIFTMAT.T)
+
+    def SpatialTransform2D(self, shift=Shifts()):
+        # data look like matlab
+        # kspSI.shape == (2048, 576)
+        if self.kspace is None:
+            self.IFFTData()
+        SHIFTMAP = self.ShiftMap(shift)
+
+        kspSI = self.kspace.reshape(self.rows*self.cols, self.pts*2).T
+        # convert to complex - first half is read, second is half is complex
+        data1 = kspSI[:self.pts, :] + kspSI[self.pts:, :] * complex(0, 1)
+        # make 3d
+        data_3d = data1.reshape(self.pts, self.rows, self.cols).T
+        shifted_3d = np.zeros(data_3d.shape, dtype='complex128')
+
+        for a in np.arange(self.pts):
+            # voxel shift the data
+            data2 = data_3d[:, :, a] * SHIFTMAP
+            data2 = np.fft.fft2(data2)
+
+            # rotate images - code from matlab. not implemented (tested)
+            if shift.rotangle:
+                raise Exception('UNTESTED/UNIMPLEMENTED rotation')
+                # data2 = imrotate(data2,rotangle,'nearest','crop');
+                # maybe?
+                # data2c = scipy.misc.imrotate(data2,shift.rotangle,'nearest')
+            shifted_3d[:, :, a] = data2
+
+        # put back in 2d like ml code. second data1 in matlab code
+        # that is. stack the real and imaginary
+        kspSI_shift = shifted_3d.T.reshape(self.pts, self.rows*self.cols)
+        ret = np.vstack((np.real(kspSI_shift), np.imag(kspSI_shift)))
+        return(ret)
 
 
 class Offsets:
