@@ -53,3 +53,10 @@ def test_spatialtransform():
     # see generate_mat.m
     ml_st = loadmat('test/data/matlab/spatialtransform2d.mat')['SI']
     assert belowthres(ml_st, st, 10**-2) # PROBLEM?!
+    
+    # use same input as matlab
+    with open('test/data/matlab/kspace.1.1', 'r') as f:
+        kspace = np.fromfile(f,'<4f')
+    SI.kspace = kspace.reshape(24,24,1024*2)
+    readk_st = SI.SpatialTransform2D()
+    assert belowthres(readk_st, ml_st) # FIX?

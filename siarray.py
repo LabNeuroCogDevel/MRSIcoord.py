@@ -84,7 +84,7 @@ class SIArray:
             c = (np.arange(self.cols)-self.cols/2) * shift.vertshift/self.cols
             rr, cc = np.meshgrid(r, c)
             angle = (rr + cc) * 2 * np.pi
-            SHIFTMAT = np.exp(angle*complex(0,1))
+            SHIFTMAT = np.exp(angle*complex(0, 1))
         return(SHIFTMAT.T)
 
     def SpatialTransform2D(self, shift=Shifts()):

@@ -44,6 +44,22 @@ for a=1:np
 end
 save('test/data/matlab/kspace.mat', 'kspace')
 
+%% DEBUG
+% kspaceoutname='test/data/matlab/kspace.1.1';
+% fp2 = fopen(kspaceoutname,'w');
+% for a=1:rows
+%     for b=1:cols
+%         fwrite(fp2,kspace(a,b,1:np*2),'float');
+%     end
+% end
+% fclose(fp2);
+% 
+% fp2 = fopen(kspaceoutname,'r');
+% kspace_reread = fread(fp2,[points*2 rows*cols],'float');
+% fclose(fp2);
+% kspace_noread = reshape(permute(kspace,[3,2,1]),2048,24*24);
+% imshow(abs(kspace_noread - kspace_reread)); caxis([0, 10^-5]); colormap(parula);
+
 
 %% RegenCoord 
 vo = 0;
@@ -89,33 +105,6 @@ for m=1:numrecon
 end
 poslpp = -1*poslpp + 0.5;   %half px shift in both r and c dxns
 
-
-%% SI = SpatialTransform2D(SI);
-%% detour into SpatialTransform2D
-toggleon = 1
-hanningon = 1
-rotangle = 0
-flipvert= 0
-fliphorz= 0
-flipslices=0
-
-% setup the kspace shifting
-shiftvolume = 1;
-vertshift = 1.49464;
-horzshift = -1.60098;
-
-SHIFTMAT=zeros(rows,cols);
-if (shiftvolume==1)
-    for mi=1:rows;for n=1:cols
-            angle = (((mi-1)-(rows/2))*horzshift/rows) + (((n-1)-(cols/2))*vertshift/cols);          
-            angle = angle * 2 * pi;
-            SHIFTMAT(mi,n) = exp(i*angle);          
-    end;end
-else
-    SHIFTMAT(1:rows,1:cols) = 1+0*i;
-end
-save('test/data/matlab/shiftmat.mat', 'SHIFTMAT')
-
 %% continue on with Spatialtransform2d
 
     SI_siarray = SI; % not needed. hold onto for interactive debuging
@@ -125,6 +114,9 @@ save('test/data/matlab/shiftmat.mat', 'SHIFTMAT')
     fp2 = fopen(outputfilename,'r');
     SI = fread(fp2,[points*2 rows*cols],'float');
     fclose(fp2);
+    
+    % SI == permute(kspace,[3,2,1]),2048,24*24)
+    % imshow(abs(reshape(permute(kspace,[3,2,1]),2048,24*24) - kspSI)); caxis([0, 10^-5]); colormap(parula);
 
 
     totspatial = rows*cols;
@@ -137,6 +129,45 @@ save('test/data/matlab/shiftmat.mat', 'SHIFTMAT')
     % convert to complex data
     data1(1:points,1:totspatial)= kspSI(1:points,1:totspatial) + i*kspSI(points+1:points*2,1:totspatial);
     kspData1 = data1; % NOT NEEDED hold onto for interactive 
+
+
+    %% SI = SpatialTransform2D(SI);
+    %% detour into SpatialTransform2D
+    toggleon = 1
+    hanningon = 1
+    rotangle = 0
+    flipvert= 0
+    fliphorz= 0
+    flipslices=0
+
+    % setup the kspace shifting
+    shiftvolume = 1;
+
+    %vertshift = 1.49464; %VertShift
+    %horzshift = -1.60098;% HorzShift
+
+
+%% resume Reconcoordinates3
+%% START HERE 20200411 -- run loop, compare to gui
+for m=1:numrecon
+
+
+    vertshift = poslpp(m,1);
+    horzshift = poslpp(m,2);
+    SHIFTMAT=zeros(rows,cols);
+    if (shiftvolume==1)
+        for mi=1:rows;for n=1:cols
+                angle = (((mi-1)-(rows/2))*horzshift/rows) + (((n-1)-(cols/2))*vertshift/cols);          
+                angle = angle * 2 * pi;
+                SHIFTMAT(mi,n) = exp(i*angle);          
+        end;end
+    else
+        SHIFTMAT(1:rows,1:cols) = 1+0*i;
+    end
+
+    ext = sprintf('%d.%d',posl(m,1),posl(m,2));           
+    save(pytestoutname,['test/data/matlab/shiftmat.' ext '.mat'], 'SHIFTMAT')
+
 
     % setup matrix and do 2D transform spatially spectral point by spectral point
     for a=1:points
@@ -174,9 +205,6 @@ save('test/data/matlab/shiftmat.mat', 'SHIFTMAT')
     save('test/data/matlab/spatialtransform2d.mat', 'SI')
     clear data1;
     clear data2;
-
-%% resume Reconcoordinates3
-for m=1:numrecon
     % do the reconstruction
     % convert the data matrix to appropriate formt
     ptr = (rows*cols + rows)/2.0 +1;

@@ -1,15 +1,34 @@
-* Porting
-** Differences
-*** SpatialTransform
-    ShiftMap is < 10^{-10} different. but sptial map differenes appear at thresholds below 10*-2!
-    
-    This is real and complex shifted kspace stacked (real first 1024 rows).
+* MRSI ROI selection
+This will ideally provide a graphical interface to guide placing coordinates and extracting MR spectrum.
 
-    Here's thresolded by 10^{-4}
-    [[file:imgs/spatialTransform_MLvsPY_diff_gt_10e-04.png]]
+* Porting From Matlab
 
-    Here's and more permissive by 10^-3
-    [[file:imgs/spatialTransform_MLvsPY_diff_gt_10e-03.png]]
+** Read/Write isn't lossless?
+
+After IFFT, matlab code saves to ~kspace.1.1~.
+Reading this file back in and comparing to itself we can see lossy-ness around 10^{-3}. The figure max color is 10^{-5}.
+
+   #+BEGIN_SRC python :session :export both :file imgs/lossy-kspace.png
+     import matplotlib.pyplot as plt
+     from siarray import SIArray
+     # calc data
+     SI = SIArray('test/data/siarray.1.1')
+     SI.IFFTData()
+     # read stored (matlab fwrite)
+     with open('test/data/matlab/kspace.1.1', 'r') as f:
+	 kspace = np.fromfile(f, '<4f')
+
+     reread = kspace.reshape(24**2, 1024*2).T 
+     orig = SI.kspace.reshape(24**2, 1024*2).T
+     # see difference
+     plt.imshow(abs(orig - reread))
+     plt.clim([0,10**-5])
+     plt.savefig('imgs/lossy-kspace.png', bbox_inches='tight')
+   #+END_SRC
+
+   #+RESULTS:
+   [[file:imgs/lossy-kspace.png]]
+
 ** Comparing python and matlab
    ~test/genrate_mat.m~ runs through the spectrum pipeline and saves out matfiles to test the python code against.
    #+BEGIN_SRC bash
