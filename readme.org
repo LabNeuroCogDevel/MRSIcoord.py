@@ -6,7 +6,8 @@ This will ideally provide a graphical interface to guide placing coordinates and
 ** Read/Write isn't lossless?
 
 After IFFT, matlab code saves to ~kspace.1.1~.
-Reading this file back in and comparing to itself we can see lossy-ness around 10^{-3}. The figure max color is 10^{-5}.
+Reading this file back in and comparing to itself we can see lossy-ness around 10^{-3}.
+The figure max color is 10^{-5}. The same can be seen using matlab (but harder to render here).
 
    #+BEGIN_SRC python :session :export both :file imgs/lossy-kspace.png
      import matplotlib.pyplot as plt
@@ -27,6 +28,7 @@ Reading this file back in and comparing to itself we can see lossy-ness around 1
    #+END_SRC
 
    #+RESULTS:
+
    [[file:imgs/lossy-kspace.png]]
 
 ** Comparing python and matlab

@@ -3,12 +3,17 @@
 %
 
 % calls are distilled versions of 
+function genrate_mat
+
+rows=24
+cols=24
 
 %% binary float read (little indian)
 % scout as mat (despite the .mat, this file is not a standard matlab mat file)
 fname='test/data/mprage_middle.mat';
 res=216;
 fp1 = fopen(fname,'r');
+if fp1 <= 0, error('cannot open %s/%s', pwd, fname); end
 scout = fread(fp1,[res res],'float');
 fclose(fp1);
 save('test/data/matlab/scout.mat', 'scout')
@@ -44,15 +49,15 @@ for a=1:np
 end
 save('test/data/matlab/kspace.mat', 'kspace')
 
+kspaceoutname='test/data/matlab/output/kspace.1.1';
+fp2 = fopen(kspaceoutname,'w');
+for a=1:rows
+    for b=1:cols
+        fwrite(fp2,kspace(a,b,1:np*2),'float');
+    end
+end
+fclose(fp2);
 %% DEBUG
-% kspaceoutname='test/data/matlab/kspace.1.1';
-% fp2 = fopen(kspaceoutname,'w');
-% for a=1:rows
-%     for b=1:cols
-%         fwrite(fp2,kspace(a,b,1:np*2),'float');
-%     end
-% end
-% fclose(fp2);
 % 
 % fp2 = fopen(kspaceoutname,'r');
 % kspace_reread = fread(fp2,[points*2 rows*cols],'float');
@@ -67,22 +72,25 @@ ho = 0;
 angle = 0;
 res=216;
 % posl = zeros(6, 2); % gui has 6 for left and right
+posl=[];
 posl(1,1) = 130;
 posl(1,2) = 99;
 posl(2,1) = 121;
 posl(2,2) = 94;
-posl = res + 2 - posl
+posl(3,1) = 113;
+posl(3,2) = 89;
+posl_rz = res + 2 - posl
 %create transformation matrix, 2rows x 3columns
 rotm1 = [cos(angle) sin(angle) vo];
 rotm2 = [-sin(angle) cos(angle) ho];
 
 rotm = [rotm1;rotm2]
-thirdrow = ones(1,size(posl,1));
-posltemp = [posl';thirdrow];
+thirdrow = ones(1,size(posl_rz,1));
+posltemp = [posl_rz';thirdrow];
 lastrow = [0 0 1];
 rotmtemp = [rotm;lastrow];
 retpos = rotmtemp\posltemp;
-save('test/data/matlab/retpos.mat', 'retpos')
+save('test/data/matlab/retpos_3.mat', 'retpos')
 
 %% make spectrum - ReconCoordinates3.m
 
@@ -90,9 +98,8 @@ save('test/data/matlab/retpos.mat', 'retpos')
 % [posltemp,posrtemp]=RegenCoor(scout,scoutf,posl,posr);
 posltemp = retpos
 points=np
-rows=24
-cols=24
 
+%% TODO: this is the second time res+2-posl happends? is that okay?
 numrecon = size(posltemp,2);
 posltemp = res + 2 - posltemp;
 posltemp = posltemp';
@@ -104,51 +111,54 @@ for m=1:numrecon
     poslpp(m,2) = (poslp(m,2)-1-(res/2))*(cols/res);
 end
 poslpp = -1*poslpp + 0.5;   %half px shift in both r and c dxns
-
-%% continue on with Spatialtransform2d
-
-    SI_siarray = SI; % not needed. hold onto for interactive debuging
-    % read kspace -- created above
-    %outputfilename = CreateName(7); 
-    outputfilename = '/Volumes/Hera/Projects/7TBrainMech/subjs/11743_20190802/slice_PFC/MRSI_roi/raw//kspace.1.1';
-    fp2 = fopen(outputfilename,'r');
-    SI = fread(fp2,[points*2 rows*cols],'float');
-    fclose(fp2);
-    
-    % SI == permute(kspace,[3,2,1]),2048,24*24)
-    % imshow(abs(reshape(permute(kspace,[3,2,1]),2048,24*24) - kspSI)); caxis([0, 10^-5]); colormap(parula);
+save('test/data/matlab/pospp.mat', 'poslpp')
+% this is pospp in python, returned from si.pos_shift()
 
 
-    totspatial = rows*cols;
-    totpts = 2* points;
+%% %% continue on with Spatialtransform2d
 
-    % get the data 
-    % read kspace
-    kspSI = SI;
+SI_siarray = SI; % not needed. hold onto for interactive debuging
+% read kspace -- created above
+% test against
+% inputfilename = '/Volumes/Hera/Projects/7TBrainMech/subjs/11743_20190802/slice_PFC/MRSI_roi/raw//kspace.1.1';
+inputfilename = kspaceoutname;
+fp2 = fopen(inputfilename,'r');
+SI = fread(fp2,[points*2 rows*cols],'float');
+fclose(fp2);
 
-    % convert to complex data
-    data1(1:points,1:totspatial)= kspSI(1:points,1:totspatial) + i*kspSI(points+1:points*2,1:totspatial);
-    kspData1 = data1; % NOT NEEDED hold onto for interactive 
+% SI == permute(kspace,[3,2,1]),2048,24*24)
+% imshow(abs(reshape(permute(kspace,[3,2,1]),2048,24*24) - kspSI)); caxis([0, 10^-5]); colormap(parula);
 
 
-    %% SI = SpatialTransform2D(SI);
-    %% detour into SpatialTransform2D
-    toggleon = 1
-    hanningon = 1
-    rotangle = 0
-    flipvert= 0
-    fliphorz= 0
-    flipslices=0
+totspatial = rows*cols;
+totpts = 2* points;
 
-    % setup the kspace shifting
-    shiftvolume = 1;
+% get the data 
+% read kspace
+kspSI = SI;
 
-    %vertshift = 1.49464; %VertShift
-    %horzshift = -1.60098;% HorzShift
+% convert to complex data
+data1(1:points,1:totspatial)= kspSI(1:points,1:totspatial) + i*kspSI(points+1:points*2,1:totspatial);
+kspData1 = data1; % NOT NEEDED hold onto for interactive 
+
+
+%% SI = SpatialTransform2D(SI);
+%% detour into SpatialTransform2D
+toggleon = 1
+hanningon = 1
+rotangle = 0
+flipvert= 0
+fliphorz= 0
+flipslices=0
+
+% setup the kspace shifting
+shiftvolume = 1;
+
+%vertshift = 1.49464; %VertShift
+%horzshift = -1.60098;% HorzShift
 
 
 %% resume Reconcoordinates3
-%% START HERE 20200411 -- run loop, compare to gui
 for m=1:numrecon
 
 
@@ -165,8 +175,8 @@ for m=1:numrecon
         SHIFTMAT(1:rows,1:cols) = 1+0*i;
     end
 
-    ext = sprintf('%d.%d',posl(m,1),posl(m,2));           
-    save(pytestoutname,['test/data/matlab/shiftmat.' ext '.mat'], 'SHIFTMAT')
+    posl_ext = sprintf('%d.%d',posl(m,1),posl(m,2));           
+    save(['test/data/matlab/shiftmat.' posl_ext '.mat'], 'SHIFTMAT')
 
 
     % setup matrix and do 2D transform spatially spectral point by spectral point
@@ -202,8 +212,10 @@ for m=1:numrecon
     % overrides SI was also kspSI
     SI(1:points,1:totspatial) = real(data1(1:points,1:totspatial));
     SI(points+1:points*2,1:totspatial) = imag(data1(1:points,1:totspatial));
-    save('test/data/matlab/spatialtransform2d.mat', 'SI')
-    clear data1;
+    save(['test/data/matlab/spatialtransform2d_' posl_ext '.mat'], 'SI')
+
+    % reset data1
+    data1 = kspSI(1:points,1:totspatial) + i*kspSI(points+1:points*2,1:totspatial);
     clear data2;
     % do the reconstruction
     % convert the data matrix to appropriate formt
@@ -226,8 +238,9 @@ for m=1:numrecon
     spectrum(1:points) = real(scd);
     spectrum(points+1:points*2) = imag(scd);
 
+    save(['test/data/matlab/spectrum_' posl_ext '.mat'], 'spectrum')
     % PlotSpectrum(spectrum);
-    filename = cat(2,dirname,typename,ext);
+    filename = ['test/data/matlab/output/spectrum_' posl_ext]
     fp11 = fopen(filename,'w');
     fwrite(fp11,spectrum,'float');
     fclose(fp11);
@@ -260,3 +273,5 @@ end
 %         end
 %     end
 % end
+
+end
