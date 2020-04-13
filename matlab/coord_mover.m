@@ -170,6 +170,8 @@ function [f, coords] = coord_mover(ld8, varargin)
       fprintf('[INFO] loading specified brain and coords %s %s\n', p.Results.brain, p.Results.subjcoords)
       coords_file = p.Results.subjcoords;
       mprage_file = p.Results.brain;
+
+      % likely size(nii.img) == [216 216 99]
       nii = load_untouch_nii(mprage_file);
       % only if we haven't already set it
       if ~ismember('z_free', fieldnames(data))
@@ -362,8 +364,8 @@ function [f, coords] = coord_mover(ld8, varargin)
 
   uicontrol('Position',[buttonx, a_h+20, 100, 20], ...
             'String','Spectrum',...
-            'Tag', 'gen_spectrum', ...
-            'Callback', @roihelp ...
+            'Tag', 'spectrum', ...
+            'Callback', @spectrum ...
             );
   buttonx=buttonx+100;
   
@@ -388,16 +390,18 @@ function [f, coords] = coord_mover(ld8, varargin)
             'String',sprintf('%d %d %d\n', coords'),...
             'Style','text', ...
             'Tag', 'disp_current');
-  % toggle between positions
-%   uicontrol('Position',[a_w*2/3, a_h-10, 20, 20], ...
-%             'String','sid3coord',...
-%             'Style', 'checkbox', ...
-%             'Tag', 'toggle_sid3');
   % text box with current roi
   uicontrol('Position',[a_w*2/3, a_h, 2*a_w/3, 20], ...
             'String', 'SELECT ROI',...
             'Style','text', ...
             'Tag', 'curroibox');
+  % toggle orientation of coordinates
+  uicontrol('Position',[a_w*2/3, a_h+40, 100, 30], ...
+             'String','sid3coord',...
+             'Style', 'checkbox', ...
+             'Value', 1, ...
+             'Callback', @(s,r) update_display(gcf), ...
+             'Tag', 'toggle_sid3');
 
   % draw all the rectangles
   update_display(f); %,[axial_above, axial_mid, axial_below])
@@ -408,7 +412,9 @@ function [f, coords] = coord_mover(ld8, varargin)
   % Unrecognized property 'windowscrollWheelFcn' for class
   % 'matlab.graphics.axis.Axes'
   
-  set(f,'KeyPessFcn', @keyboard_cb);
+  try,
+    set(f,'KeyPessFcn', @keyboard_cb);
+  end
   
   f.Visible = 'on';
 end
@@ -658,18 +664,36 @@ function outname=save_coords()
   if ~exist(savedir,'dir'), mkdir(savedir); end
   outname=fullfile(savedir,'picked_coords.txt');
   dlmwrite(outname, data.coords, 'delimiter','\t');
+  % save sid3 row col
+  outname=fullfile(savedir,'picked_coords_sid3.txt');
+  dlmwrite(outname,crd2sid(data.coords, size(data.nii.img)), 'delimiter','\t');
 end
 
-function crd2sid(coords)
+function sid3coords = crd2sid(coords, res)
+    % N.B. didn't actually check res! might need to reverse
+    % res is shape of nii
+    sid3coords = zeros(size(coords,1),2);
+    sid3coords(:,1) = res(2) - coords(:,3) + 1;
+    sid3coords(:,2) = res(1) - coords(:,2) + 1;
 end
 
-function gen_spectrum()
+function spectrum(varargin)
   f=gcf;
   data = guidata(f);
-  pos = crd2sid(data.coords);
+  res = size(data.nii.img)
+  pos = crd2sid(data.coords, res);
   % find mprage.mat and siarray
   % run through
+  [si, pth]= uigetfile({'siarray.1.1'},'siarray file');
+  si=fullfile(pth,si);
 
+  %savedir = fullfile(fileparts(data.coords_file), data.who);
+  %outfolder = uigetdir({savedir},'Spectrum output folder');
+  outfolder = uigetdir({},'Spectrum output folder');
+  if ~isfile(si)
+      error('no file %s',si)
+  end
+  gen_spectrum(si, res(1), pos, outfolder)
 end
 
 function inname=load_coords(n_rois,z_mid)
@@ -860,15 +884,22 @@ function update_display(f, all_ax, updateundo)
    
    % update text
    t = findobj(f,'Tag','disp_current');
+   sid3t = findobj(f,'Tag','toggle_sid3');
    if(~isempty(t))
-     t.String = sprintf('%d %d %d %d\n', data.coords');
+     if sid3t.Value == 1
+         dispcoords = crd2sid(data.coords, size(data.nii.img));
+         fmt = '%d %d\n';
+     else
+         dispcoords = data.coords;
+         fmt = '%d %d %d %d\n';
+     end
+     t.String = sprintf(fmt, dispcoords');
    end
-   
-
    
    % put rects backinto gui data
    guidata(f,data)
 end
+
 
 function o = draw_psf(coords, colors, pxd, thres)
 % DRAW_PSF - draw cirlces of radius r. fill if any coord overlaps
