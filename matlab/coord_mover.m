@@ -40,6 +40,8 @@ function [f, coords] = coord_mover(ld8, varargin)
   mni_label_file='./mni_coords_MPOR_20190425_labeled.txt';
 
   NIFTIDIR='/Volumes/Hera/Projects/7TBrainMech/scripts/mri/MRSI/Codes_yj/NIfTI';
+  %BASHSCRIPTS=fileparts(mfilename('fullpath'));
+  BASHSCRIPTS='/Volumes/Hera/Projects/7TBrainMech/scripts/mri/MRSI_roi';
   % need nii reader in path
   if isempty(which('load_untouch_nii'))
       addpath(NIFTIDIR);
@@ -667,7 +669,7 @@ function mni(varargin)
   % requires lncd preproc directory (for warp coefs)
   preprocdir = [data.rdir '/../../ppt1'];
   slicedir = [data.rdir '../..'];
-  shscript = fullfile(fileparts(mfilename('fullpath')),'coord_builder.bash'),
+  shscript = fullfile(BASHSCRIPTS,'coord_builder.bash'),
   cmd = sprintf('env -i bash -lc "%s subj-to-mni %s %s %s %s"', ...
         shscript, outname, preprocdir, slicedir, savedir)
   system(cmd)
