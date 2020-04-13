@@ -48,6 +48,17 @@ def test_shiftmap():
     ml_sm = loadmat('test/data/matlab/shiftmat.mat')['SHIFTMAT']
     assert belowthres(ml_sm, shiftmat)
 
+def test_littleindian(tmpdir):
+    SI = SIArray('test/data/siarray.1.1')
+    SI.IFFTData()
+    SI.savekspace(tmpdir.join("temp_kspace.1.1"), reload=True)
+    with open('test/data/matlab/kspace.1.1', 'r') as f:
+        mlk = np.fromfile(f,'<4f').\
+              reshape(SI.rows, SI.cols, SI.pts*2)
+    assert belowthres(SI.kspace, mlk, 10**-2)
+    assert belowthres(SI.kspace, mlk, 10**-6)
+    
+
 def test_spatialtransform():
     SI = SIArray('test/data/siarray.1.1')
     st = SI.SpatialTransform2D(vertshift=1.49464, horzshift=-1.60098)
@@ -81,4 +92,14 @@ def test_spectrum():
     spectrums = SI.ReconCoordinates3(scout, pos)
     ml_s3 = loadmat('test/data/matlab/spectrum_113.89')['spectrum']
     assert belowthres(spectrums[2,:], ml_s3)
-    
+
+def test_spectrum_save(tmpdir):
+    pos = np.array([[130,99], [121, 94], [113, 89]])
+    scout = Scout('test/data/mprage_middle.mat')
+    SI = SIArray('test/data/siarray.1.1')
+    SI.IFFTData()
+    SI.savekspace(tmpdir.join("temp_kspace.1.1"), reload=True)
+
+    spectrums = SI.ReconCoordinates3(scout, pos)
+    ml_s3 = loadmat('test/data/matlab/spectrum_113.89')['spectrum']
+    assert belowthres(spectrums[2,:], ml_s3, 10**-6)

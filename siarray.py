@@ -22,13 +22,15 @@ class Offsets:
 
 class Scout:
     def __init__(self, scout: str, res=216):
-        self.fname = scout
         self.res = res
-        with open(self.fname, 'r') as fp1:
-            self.data = np.fromfile(fp1, '<4f').reshape(res, res).T
-            # Matlab like
-            # fp1 = fopen(fname,'r');
-            # scout = fread(fp1,[res res],'float');
+        self.fname = scout
+        self.data = None
+        if scout:
+            with open(self.fname, 'r') as fp1:
+                self.data = np.fromfile(fp1, '<4f').reshape(res, res).T
+                # Matlab like
+                # fp1 = fopen(fname,'r');
+                # scout = fread(fp1,[res res],'float');
 
     def RegenCoor(self, pos, offsets=Offsets()):
         """
@@ -123,6 +125,29 @@ class SIArray:
             kspace[:, :, self.pts + a] = imag(temp)
 
         self.kspace = kspace
+
+    def savekspace(self, fname, reload=False):
+        """ save kspace to little indian encoded file
+        optionally, reload it for lossy matlab match
+
+        also note [ 1 2; 3 4]
+          Matlab=column-major (1 3 2 4),
+          python=row-major    (1 2 3 4)
+        https://scottstaniewicz.com/articles/python-matlab-binary/
+        >>> SI.kspace[0,0,0].tobytes()               == b'j\x1c\xf7oVk\x98?'
+        >>> SI.kspace.astype('<f4')[0,0,0].tobytes() == b'\xb3Z\xc3<'
+        """
+        k = self.kspace.\
+            astype('<f4')
+        with open(fname, 'wb') as f:
+            k.tofile(f)
+        with open(fname, 'r') as f:
+            # little-endian float
+            kn = np.fromfile(f, '<4f').\
+                 reshape(self.rows, self.cols, self.pts*2)
+        if reload:
+            self.kspace = kn
+        return kn
 
     def ShiftMap(self, vertshift, horzshift):
         """
@@ -249,10 +274,9 @@ class SIArray:
             if writedir:
                 row = pos[m, 0]
                 col = pos[m, 1]
-                # filename = cat(2,dirname,typename,ext);
-                # fp11 = fopen(filename,'w');
-                # fwrite(fp11,spectrum,'float');
-                # fclose(fp11);
+                filename = "%s/spectrum.%d.%d" % (writedir, row, col)
+                with open(filename, 'wb') as f:
+                    spectrum.astype('<f4').tofile(f)
 
         return(spectrums)
 

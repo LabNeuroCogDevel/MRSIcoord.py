@@ -42,3 +42,17 @@ The figure max color is 10^{-5}. The same can be seen using matlab (but harder t
 find /Volumes/Hera/Projects/7TBrainMech/subjs/11743_20190802/slice_PFC/MRSI_roi/ -maxdepth 2 -iname 'rorig.nii' -or -iname 'mprage_middle.mat' -or -iname 'siarray.1.1' |
  xargs -I{} cp {} test/data/
 #+END_SRC
+
+* Testing MATLAB
+
+#+BEGIN_SRC MATLAB
+si='/Volumes/Hera/Projects/7TBrainMech/subjs/10129_20180917/slice_PFC/MRSI_roi/raw/siarray.1.1'
+gen_spectrum(si, 216, [112, 104], '/tmp')
+a=fread(fopen('/Volumes/Hera/Projects/7TBrainMech/subjs/10129_20180917/slice_PFC/MRSI_roi/raw/spectrum.112.104'),'float')
+b=fread(fopen('/tmp/spectrum_112.104'),'float');
+corr(a,b) % 1.0000
+[v,i] = max(abs(a-b)); v, a(i), b(i),
+%   0.0229
+%   5.4422e+03
+%   5.4421e+03
+#+END_SRC
