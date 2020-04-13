@@ -17,6 +17,9 @@ function [f, coords] = coord_mover(ld8, varargin)
 % [f, orig_coord] = coord_mover('11323_20180316')
 %  loads slice_roi_CM_%s_16.txt, rorig.nii, and gm_sum.nii from subj dir
 %
+% as run from coord_builder:
+% [f,crd] = coord_mover('10129_20180917', 'roilist','/Volumes/Hera/Projects/7TBrainMech/scripts/mri/MRSI_roi/roi_locations/labels_13MP20200207.txt','subjcoords', '/Volumes/Hera/Projects/7TBrainMech/subjs/10129_20180917/slice_PFC/MRSI_roi/13MP20200207/roi-scout_cm.txt')
+%
 % EXAMPLE FF:
 % [f, orig_coord] = coord_mover('FF') % loads default labels and coords; prompts to pick rorig.nii.gz
 %
@@ -41,6 +44,10 @@ function [f, coords] = coord_mover(ld8, varargin)
   if isempty(which('load_untouch_nii'))
       addpath(NIFTIDIR);
   end
+  if isempty(which('load_untouch_nii'))
+      error('failed to find load_untouch_nii! add it to your path (looked in %s)',...
+            NIFTIDIR)
+  end
   
   RAWDIRROOT='/Volumes/Hera/Projects/7TBrainMech/subjs/%s/slice_PFC/MRSI_roi/raw/';
 
@@ -58,6 +65,7 @@ function [f, coords] = coord_mover(ld8, varargin)
 
   % pop up file selector on subject id 'FF' or 'pick'
   % FF has default label and coords (empty)
+  known_subjfolder = 1;
   if strcmp(p.Results.ld8, 'FF')
      roilist = p.Results.roilist;
      if strcmp(roilist, mni_label_file), roilist = fullfile(pwd,'FF/FF_labels.txt'); end
@@ -74,6 +82,8 @@ function [f, coords] = coord_mover(ld8, varargin)
      end
      data.z_free = 0;
      parse(p,newargs{:});
+
+     data.savedir = uigetdir({},'Spectrum output folder');
 
   elseif strcmp(p.Results.ld8, 'pick')
      error('still working on this!')
@@ -126,6 +136,15 @@ function [f, coords] = coord_mover(ld8, varargin)
          error('cannot read subject raw dir "%s"; run: ./000_setupdirs.bash %s', rdir, ld8)
       end
       data.rdir=rdir;
+
+      %% siarray file
+      sifile = [rdir '/siarray.1.1'];
+      if exist(sifile,'file')
+          data.siarrayfile = sifile;
+      else
+         warning('cannot read subject siarray file "%s"; run: ./000_setupdirs.bash %s', sifile, ld8)
+      end
+
 
       %% read mprage
       mprage_file = [rdir '/rorig.nii'];
@@ -268,6 +287,16 @@ function [f, coords] = coord_mover(ld8, varargin)
   else
      data.who = upper(data.who{1});
   end
+  
+  
+
+  % put save path into data. used by 'save_coords' and 'spectrum'
+  % here b/c need both coords_file and who
+  if ~isfield(data,'savedir')
+    data.savedir = fullfile(fileparts(data.coords_file), data.who);
+  end
+  if ~exist(data.savedir,'dir'), mkdir(data.savedir); end
+  fprintf('saving picked coords, spectrum files to %s\n', data.savedir);
   
   % save data to figure
   guidata(f,data);
@@ -682,18 +711,30 @@ function spectrum(varargin)
   data = guidata(f);
   res = size(data.nii.img)
   pos = crd2sid(data.coords, res);
+
+  % make sure we record roi order for spectrum we generate
+  save_coords() 
   % find mprage.mat and siarray
   % run through
-  [si, pth]= uigetfile({'siarray.1.1'},'siarray file');
-  si=fullfile(pth,si);
+  if ~isfield(data, 'siarrayfile')
+    [si, pth]= uigetfile({'siarray.1.1'},'siarray file');
+    data.siarrayfile=fullfile(pth,si);
+  end
 
   %savedir = fullfile(fileparts(data.coords_file), data.who);
   %outfolder = uigetdir({savedir},'Spectrum output folder');
-  outfolder = uigetdir({},'Spectrum output folder');
-  if ~isfile(si)
+
+  if ~isfield(data, 'savedir')
+    data.savedir = uigetdir({},'Spectrum output folder');
+  end
+  if ~isfile(data.siarrayfile)
       error('no file %s',si)
   end
-  gen_spectrum(si, res(1), pos, outfolder)
+  % save data incase we added folder or siarrayfile
+  guidata(f,data);
+  
+  % generate spectrum
+  gen_spectrum(data.siarrayfile, res(1), pos, data.savedir);
 end
 
 function inname=load_coords(n_rois,z_mid)
