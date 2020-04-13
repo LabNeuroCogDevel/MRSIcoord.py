@@ -693,11 +693,14 @@ function outname=save_coords()
   % inputs are subj, label, who
   savedir = fullfile(fileparts(data.coords_file), data.who);
   if ~exist(savedir,'dir'), mkdir(savedir); end
+  % save sid3 row col
+  outname=fullfile(savedir,'sid3_picked_coords.txt');
+  dlmwrite(outname,crd2sid(data.coords, size(data.nii.img)), 'delimiter','\t');
+  % save what we know how to read and write
+  % NB. important that this come second.
+  % other scripts look for most recent file. we dont want to pick up on sid3 version
   outname=fullfile(savedir,'picked_coords.txt');
   dlmwrite(outname, data.coords, 'delimiter','\t');
-  % save sid3 row col
-  outname=fullfile(savedir,'picked_coords_sid3.txt');
-  dlmwrite(outname,crd2sid(data.coords, size(data.nii.img)), 'delimiter','\t');
 end
 
 function sid3coords = crd2sid(coords, res)
