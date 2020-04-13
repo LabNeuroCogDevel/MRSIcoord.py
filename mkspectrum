@@ -1,0 +1,42 @@
+#!/usr/bin/env python
+"""
+Usage:
+   mkspectrum <siarray1> <scoutres> (<posfile> | --pos <row> <col>) <outdir> [--kspace <kspacefile>]
+
+Options:
+  -h --help This helpful message.
+  --res     resolution of of scout (max values of pos) instead of file
+  --pos     provide single row and column instead of posfile
+  --kspace  use kspace genrated by matlab (lossy, but will match other specturm)
+
+  scoutres  resolution of mprage in scout space (FOV where pos were placed)
+  siarray1  CSI data file like siarray.1.1
+  posfile   ascii file each line is a row col coordnate pair. tab or space separated
+  outdir    directory to save the spectrum_row.col file(s)
+  
+"""
+from docopt import docopt
+import numpy as np
+from siarray import SIArray, Scout
+
+opt = docopt(__doc__)
+#pos = np.array([[130,99], [121, 94], [113, 89]])
+if opt.get('<posfile>'):
+    pos = np.loadtxt(opt['<posfile>'])
+else:
+    pos=np.array([[float(opt['<row>']), float(opt['<col>'])]])
+
+# make sure we have the right dimensions
+assert pos.shape[1] == 2
+
+scout = Scout(None, res=int(opt['<scoutres>']))
+
+SI = SIArray(opt['<siarray1>'])
+
+# match matlab
+if opts.get('<kspacefile>'):
+    with open('test/data/matlab/kspace.1.1', 'r') as f:
+        SI.kspace = np.fromfile(f, '<4f')
+
+s = SI.ReconCoordinates3(scout, pos, opt['<outdir>'])
+print(s)
