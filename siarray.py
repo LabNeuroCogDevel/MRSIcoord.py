@@ -81,7 +81,7 @@ class SIArray:
         self.shift = shift
 
         # NB - only ever tested with rows=cols
-        if(self.rows != self.cols):
+        if self.rows != self.cols:
             raise Exception("rows!=cols is not tested")
 
         self.readsi()  # populate data
@@ -101,10 +101,15 @@ class SIArray:
             SI = np.fromfile(fp1, '<4f').reshape(pxs, 2*self.pts).T
         self.data = SI
 
-    def integrateSI(self, s, e):
+
+    def integrateSI(self, s, e=None):
+        """sum from start to end"""
+        if not e:
+            e = self.data.shape[0]
         return np.sum(self.data[s:e, :], 0).reshape(self.res)
 
     def IFFTData(self):
+        """inverse FFT to get back to kspace"""
         kspace = zeros([self.rows, self.cols, 2*self.pts])
 
         # first half of dim1 is real, second half is imaginary component
