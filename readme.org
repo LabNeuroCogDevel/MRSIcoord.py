@@ -1,6 +1,25 @@
 * MRSI ROI selection
 This will ideally provide a graphical interface to guide placing coordinates and extracting MR spectrum.
 
+[[file:imgs/py_screenshot.png]]
+
+** Inputs
+  * ~siarray~ - spectroscipy data. 1024 complex (1024 real, 1024 imaginary) points.
+  * ~rorig.nii~ - structural MR registered to scout position
+  * ~gm_sum.nii~ - binary mask for if voxel is gm. sum of id Freesurfer gray matter regions.
+  * ~coords.txt~ - initial guess at ROI positions (from mni atlas warp, center of mass)
+
+** Output
+  * ~spectrum.xx.yy~ - reconstructed spectrum at coordinate xx, yy. One file for each ROI.
+
+**  Pipeline
+   * read inputs
+   * place each ROI (get coordinates)
+      * optimize for spectrum quality (e.g. far enough from skull)
+      * greatest GM count
+      * still classified as region of interest (anatomy)
+   * generate spectrum files
+
 * Porting From Matlab
 
 ** Read/Write isn't lossless?
