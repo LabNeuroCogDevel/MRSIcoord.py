@@ -40,6 +40,16 @@ class ROI:
         N.B. works for axial. need to reorient for cor or sag"""
         self.xy = [event.x, event.y]
 
+    def move(self, x=0, y=0, dim=None):
+        "adjust x and/or y position (arrow press). wrap around dimensions"
+        if dim is None:
+            dim = [100000, 100000]
+
+        self.xy = [(self.xy[0] + x) % dim[0], (self.xy[1] + y) % dim[1]]
+
+    def label(self):
+        return f"{self.roi} {self.xy[0]} {self.xy[1]}"
+
 
 class App(tk.Frame):
     def __init__(self, master=None):
@@ -64,8 +74,31 @@ class App(tk.Frame):
         self.pack()
         self.create_widgets()
 
+        # set by set_coords during load
+        # needed for label update and to match box outline to listbox bg
+        self.hexcolors = []
+
         # remove me? - dont autoload
         self.load()
+
+    def inc_roi_selected(self, step=1):
+        "set roi number: global var and pos in listbox"
+        n = self.roiselect.size()
+        next_roi = (self.i_curroi.get() + step) % n
+        self.i_curroi.set(next_roi)
+        self.roiselect.selection_clear(0, n)
+        self.roiselect.selection_set(next_roi)
+        self.roiselect.see(next_roi)
+        # need to update colors. redraw images and boxes
+        self.draw_images()
+        self.add_coords()
+
+    def move_roi(self, x=0, y=0, step=1):
+        "move the selected roi by one grid element"
+        roi = self.i_curroi.get()
+        self.coords[roi].move(x * step, y * step)
+        # print(f"moving {roi} {x},{y}: {self.coords[roi].xy}")
+        self.update()
 
     def create_widgets(self):
         self.loadbtn = tk.Button(self, text="load", command=self.load)
@@ -87,10 +120,19 @@ class App(tk.Frame):
         def mklmd(k):
             return lambda e: self.img_click(k, e)
 
+        # special keys only on main axial
+        self.canvas["ax0"].bind("<Return>", lambda e: self.inc_roi_selected())
+        self.canvas["ax0"].bind("<Up>", lambda e: self.move_roi(y=-1))
+        self.canvas["ax0"].bind("<Down>", lambda e: self.move_roi(y=1))
+        self.canvas["ax0"].bind("<Left>", lambda e: self.move_roi(x=-1))
+        self.canvas["ax0"].bind("<Right>", lambda e: self.move_roi(x=1))
+
         # add click to all images
+        # left to place, right to go to next roi
         for k, c in self.canvas.items():
             if type(c) == tk.Canvas:
                 c.bind("<Button-1>", mklmd(k))
+                c.bind("<Button-3>", lambda e: self.inc_roi_selected())
 
         # dropdown for roi selection
         self.roiselect = tk.Listbox(self)
@@ -155,6 +197,25 @@ class App(tk.Frame):
             else:
                 print("no draw code for %s" % k)
 
+    def update_roi_label(self):
+        "set current roi label to include box position"
+        lb = self.roiselect
+        i = lb.curselection()
+
+        # update might happen before listbox has any selection
+        if not i:
+            print(f"WARN: update roi_label but no i!")
+            return
+        # listbox curselection is (index, None)
+        i = i[0]
+        title = self.coords[i].label()
+
+        # no way to change label? rm and add back
+        # color is cleared with delete, need to restore
+        lb.delete(i)
+        lb.insert(i, title)
+        lb.itemconfig(i, {"bg": self.hexcolors[i]})
+
     def update_plot(self):
         """update matplotlib objects"""
         # TODO: get pos from clicked loc
@@ -168,19 +229,27 @@ class App(tk.Frame):
 
     def add_coords(self):
         """draw boxes for each coordinage"""
-        for roi in self.coords:
+        for i, roi in enumerate(self.coords):
             xy = roi.xy
+
+            # white if selected otherwise same as roiselection
+            if i == self.i_curroi.get():
+                color = "white"
+            else:
+                color = self.hexcolors[i]
+
             # boxes on each canvas
             for k, c in self.canvas.items():
                 # skip matplotlib objects
                 if k in ["spc"]:
                     continue
+
                 c.create_rectangle(
                     xy[0] - self.voxdim[0] / 2,
                     xy[1] - self.voxdim[1] / 2,
                     xy[0] + self.voxdim[0] / 2,
                     xy[1] + self.voxdim[1] / 2,
-                    outline="white",
+                    outline=color,
                 )
 
             # circles for independance
@@ -192,6 +261,8 @@ class App(tk.Frame):
         self.draw_images()
         self.add_coords()
         self.update_plot()
+        self.roiselect.selection_set(self.i_curroi.get())
+        self.update_roi_label()
 
     def load(self):
         """read imaging files"""
@@ -214,12 +285,12 @@ class App(tk.Frame):
 
         cm = plt.get_cmap("hsv")
         colors = cm(np.arange(len(self.coords)) / len(self.coords)) * 254
-        hexcolors = [
+        self.hexcolors = [
             "#%02x%02x%02x" % tuple(rgb[0:3]) for rgb in colors.astype(int).tolist()
         ]
         for i, roi in enumerate([x.roi for x in self.coords]):
             mn.insert("end", roi)
-            mn.itemconfig(i, {"bg": hexcolors[i]})
+            mn.itemconfig(i, {"bg": self.hexcolors[i]})
             # mn.add_command(label=roi, command=setroi(i))
 
     def img_click(self, canvas_key, event):
