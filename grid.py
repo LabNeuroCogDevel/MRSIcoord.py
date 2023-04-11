@@ -101,7 +101,13 @@ class App(tk.Frame):
         self.update()
 
     def create_widgets(self):
-        self.loadbtn = tk.Button(self, text="load", command=self.load)
+
+        # TODO: these could be top bar menu item?
+        self.btnfrm = tk.Frame(highlightbackground="blue", highlightthickness=2)
+        self.loadbtn = tk.Button(self.btnfrm, text="load", command=self.load)
+        self.loadbtn.pack(side="left")
+        self.savebtn = tk.Button(self.btnfrm, text="save", command=self.save_spec)
+        self.savebtn.pack(side="left")
 
         fig = Figure(figsize=(2, 1))
         self.canvas = {
@@ -113,7 +119,7 @@ class App(tk.Frame):
         }
         self.axes = {"spc": fig.add_subplot(111)}
 
-        self.loadbtn.pack(side="top")
+        self.btnfrm.pack(side="top")
 
         # if we just use an embeded bind lambda
         # only the last one created will be used for all
@@ -274,6 +280,13 @@ class App(tk.Frame):
         self.update()
         self.scout = Scout(None, res=216)
 
+    def save_spec(self, outdir="out"):
+        "write positioned coordinates recon spectrum.xx.yy files"
+        print("WARNING: need to check against matlab gui still!")
+        pos = np.array([c.xy for c in self.coords])
+        s = self.siarray.ReconCoordinates3(self.scout, pos, outdir)
+        print(s)
+
     def set_coords(self):
         self.coords = [
             ROI("roi1", [10, 10]),
@@ -308,11 +321,7 @@ class App(tk.Frame):
 #  * load GM+GM count
 #  * move to best GM
 #  * collision
-#  * track box/circle instead of delete/create
-# ---
-#  * read in siarray
-#  * show
-#  * spectrum at position
+#  * right click for closest to click, not next num
 
 root = tk.Tk()
 app = App(master=root)
