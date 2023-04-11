@@ -200,7 +200,7 @@ class App(tk.Frame):
         cm = plt.get_cmap('hsv')
         colors = cm(np.arange(len(self.coords))/len(self.coords))*254
         hexcolors = ['#%02x%02x%02x' % tuple(rgb[0:3]) 
-                     for rgb in colors.astype(np.int).tolist()]
+                     for rgb in colors.astype(int).tolist()]
         for i, roi in enumerate([x.roi for x in self.coords]):
             mn.insert("end", roi)
             mn.itemconfig(i, {'bg': hexcolors[i]})

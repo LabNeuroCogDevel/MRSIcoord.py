@@ -114,7 +114,7 @@ class SIArray:
 
         # first half of dim1 is real, second half is imaginary component
         SIData = (self.data[:self.pts, :] +
-                  self.data[self.pts:, :] * np.complex(0, 1)).\
+                  self.data[self.pts:, :] * complex(0, 1)).\
             T.reshape(self.rows, self.cols, self.pts)
         # from matlab:
         #  SIData(15,13,82) == -1.0690e+02 - 5.3431e+01i
@@ -161,7 +161,7 @@ class SIArray:
         """
         if not self.shift.shiftvolume:
             raise Warning("UNTESTED no shift")
-            SHIFTMAT = np.ones((self.rows, self.cols)) + np.complex(0, 0)
+            SHIFTMAT = np.ones((self.rows, self.cols)) + complex(0, 0)
             return(SHIFTMAT.T)
 
         # as saved by kspace.1.1
