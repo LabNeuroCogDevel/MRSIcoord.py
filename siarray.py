@@ -5,7 +5,7 @@ from numpy.fft import fftshift, ifft2
 
 class Offsets:
     def __init__(self, vo=0, ho=0, angle=0):
-        """ offsets
+        """offsets
         @param vo vertical offset
         @param ho horizons offset
         @param angle in radians
@@ -13,9 +13,9 @@ class Offsets:
         self.vo = vo
         self.ho = ho
         self.angle = angle
-        if (vo != 0 or ho != 0 or angle != 0):
-            raise Warning('untested offsets/angle rotation!')
-        rotm1 = [np.cos(angle), np.sin(angle),  vo]
+        if vo != 0 or ho != 0 or angle != 0:
+            raise Warning("untested offsets/angle rotation!")
+        rotm1 = [np.cos(angle), np.sin(angle), vo]
         rotm2 = [-np.sin(angle), np.cos(angle), ho]
         self.rotm = np.vstack((rotm1, rotm2))
 
@@ -26,8 +26,8 @@ class Scout:
         self.fname = scout
         self.data = None
         if scout:
-            with open(self.fname, 'r') as fp1:
-                self.data = np.fromfile(fp1, '<4f').reshape(res, res).T
+            with open(self.fname, "r") as fp1:
+                self.data = np.fromfile(fp1, "<4f").reshape(res, res).T
                 # Matlab like
                 # fp1 = fopen(fname,'r');
                 # scout = fread(fp1,[res res],'float');
@@ -55,11 +55,12 @@ class Scout:
         lastrow = [0, 0, 1]
         rotmtemp = np.vstack((rotm, lastrow))
         retpos = np.linalg.lstsq(rotmtemp, postemp, rcond=None)
-        return(np.array(retpos[0]))
+        return np.array(retpos[0])
 
 
 class Shifts:
-    """ class to easily pass around default shift settings """
+    """class to easily pass around default shift settings"""
+
     def __init__(self, shiftvolume=1, rotangle=0):
         # toggleon=1, hanningon=1,
         # flipvert=0, fliphorz=0, flipslices=0,
@@ -68,8 +69,7 @@ class Shifts:
 
 
 class SIArray:
-    def __init__(self, siname: str, res=(24, 24), pts=1024, sliceno=1,
-                 shift=Shifts()):
+    def __init__(self, siname: str, res=(24, 24), pts=1024, sliceno=1, shift=Shifts()):
         self.fname = siname
         self.res = res
         self.rows = res[0]
@@ -87,20 +87,19 @@ class SIArray:
         self.readsi()  # populate data
 
     def readsi(self):
-        '''readsi - read siarray.1.1 file
+        """readsi - read siarray.1.1 file
         adapated from LoadSInD.m
         https://stackoverflow.com/questions/2146031/what-is-the-equivalent-of-fread-from-matlab-in-python
         https://stackoverflow.com/questions/44335749/read-a-float-binary-file-into-2d-arrays-in-python-and-matlab
-        '''
-        with open(self.fname, 'r') as fp1:
+        """
+        with open(self.fname, "r") as fp1:
             # if not slice 1, calculate offset
             pxs = self.res[0] * self.res[1]
-            offsetptr = pxs*self.pts*4*2*(self.sliceno-1)
+            offsetptr = pxs * self.pts * 4 * 2 * (self.sliceno - 1)
             fp1.seek(offsetptr)
             # little-endian float32
-            SI = np.fromfile(fp1, '<4f').reshape(pxs, 2*self.pts).T
+            SI = np.fromfile(fp1, "<4f").reshape(pxs, 2 * self.pts).T
         self.data = SI
-
 
     def integrateSI(self, s, e=None):
         """sum from start to end"""
@@ -110,12 +109,12 @@ class SIArray:
 
     def IFFTData(self):
         """inverse FFT to get back to kspace"""
-        kspace = zeros([self.rows, self.cols, 2*self.pts])
+        kspace = zeros([self.rows, self.cols, 2 * self.pts])
 
         # first half of dim1 is real, second half is imaginary component
-        SIData = (self.data[:self.pts, :] +
-                  self.data[self.pts:, :] * complex(0, 1)).\
-            T.reshape(self.rows, self.cols, self.pts)
+        SIData = (
+            self.data[: self.pts, :] + self.data[self.pts :, :] * complex(0, 1)
+        ).T.reshape(self.rows, self.cols, self.pts)
         # from matlab:
         #  SIData(15,13,82) == -1.0690e+02 - 5.3431e+01i
         #  SIData(20,6,507) == 2.2938e+02 + 1.8219e+02i
@@ -132,7 +131,7 @@ class SIArray:
         self.kspace = kspace
 
     def savekspace(self, fname, reload=False):
-        """ save kspace to little indian encoded file
+        """save kspace to little indian encoded file
         optionally, reload it for lossy matlab match
 
         also note [ 1 2; 3 4]
@@ -142,14 +141,12 @@ class SIArray:
         >>> SI.kspace[0,0,0].tobytes()               == b'j\x1c\xf7oVk\x98?'
         >>> SI.kspace.astype('<f4')[0,0,0].tobytes() == b'\xb3Z\xc3<'
         """
-        k = self.kspace.\
-            astype('<f4')
-        with open(fname, 'wb') as f:
+        k = self.kspace.astype("<f4")
+        with open(fname, "wb") as f:
             k.tofile(f)
-        with open(fname, 'r') as f:
+        with open(fname, "r") as f:
             # little-endian float
-            kn = np.fromfile(f, '<4f').\
-                 reshape(self.rows, self.cols, self.pts*2)
+            kn = np.fromfile(f, "<4f").reshape(self.rows, self.cols, self.pts * 2)
         if reload:
             self.kspace = kn
         return kn
@@ -162,15 +159,15 @@ class SIArray:
         if not self.shift.shiftvolume:
             raise Warning("UNTESTED no shift")
             SHIFTMAT = np.ones((self.rows, self.cols)) + complex(0, 0)
-            return(SHIFTMAT.T)
+            return SHIFTMAT.T
 
         # as saved by kspace.1.1
-        r = (np.arange(self.rows)-self.rows/2) * horzshift/self.rows
-        c = (np.arange(self.cols)-self.cols/2) * vertshift/self.cols
+        r = (np.arange(self.rows) - self.rows / 2) * horzshift / self.rows
+        c = (np.arange(self.cols) - self.cols / 2) * vertshift / self.cols
         rr, cc = np.meshgrid(r, c)
         angle = (rr + cc) * 2 * np.pi
-        SHIFTMAT = np.exp(angle*complex(0, 1))
-        return(SHIFTMAT.T)
+        SHIFTMAT = np.exp(angle * complex(0, 1))
+        return SHIFTMAT.T
 
     def pos_shift(self, scout: Scout, pos: np.ndarray):
         """
@@ -190,11 +187,14 @@ class SIArray:
         # convert the offsets to fractional pixel shifts
         # transpose, drop 3rd column (was 3rd row).
         #  adjust by csi.res/scout.res
-        fracpx = (posadj.T[:, :2] - 1 - scout.res/2) * \
-            np.array([self.rows, self.cols])/scout.res
+        fracpx = (
+            (posadj.T[:, :2] - 1 - scout.res / 2)
+            * np.array([self.rows, self.cols])
+            / scout.res
+        )
         # half px shift in both r and c dxns
         pospp = -1 * fracpx + 0.5
-        return(pospp)
+        return pospp
 
     def SpatialTransform2D(self, vertshift, horzshift):
         """
@@ -209,12 +209,12 @@ class SIArray:
             self.IFFTData()
         SHIFTMAP = self.ShiftMap(vertshift, horzshift)
 
-        kspSI = self.kspace.reshape(self.rows*self.cols, self.pts*2).T
+        kspSI = self.kspace.reshape(self.rows * self.cols, self.pts * 2).T
         # convert to complex - first half is read, second is half is complex
-        data1 = kspSI[:self.pts, :] + kspSI[self.pts:, :] * complex(0, 1)
+        data1 = kspSI[: self.pts, :] + kspSI[self.pts :, :] * complex(0, 1)
         # make 3d
         data_3d = data1.reshape(self.pts, self.rows, self.cols).T
-        shifted_3d = np.zeros(data_3d.shape, dtype='complex128')
+        shifted_3d = np.zeros(data_3d.shape, dtype="complex128")
 
         for a in np.arange(self.pts):
             # voxel shift the data
@@ -223,7 +223,7 @@ class SIArray:
 
             # rotate images - code from matlab. not implemented (tested)
             if self.shift.rotangle:
-                raise Exception('UNTESTED/UNIMPLEMENTED rotation')
+                raise Exception("UNTESTED/UNIMPLEMENTED rotation")
                 # data2 = imrotate(data2,rotangle,'nearest','crop');
                 # maybe?
                 # data2c = scipy.misc.imrotate(data2,shift.rotangle,'nearest')
@@ -231,9 +231,9 @@ class SIArray:
 
         # put back in 2d like ml code. second data1 in matlab code
         # that is. stack the real and imaginary
-        kspSI_shift = shifted_3d.T.reshape(self.pts, self.rows*self.cols)
+        kspSI_shift = shifted_3d.T.reshape(self.pts, self.rows * self.cols)
         ret = np.vstack((np.real(kspSI_shift), np.imag(kspSI_shift)))
-        return(ret)
+        return ret
 
     def spectrum(self, vertshift, horzshift):
         """
@@ -242,18 +242,17 @@ class SIArray:
         """
         st = self.SpatialTransform2D(vertshift, horzshift)
         # 1 row past center? # 300 if 24x24
-        extract_pos = int((self.rows+1)*self.cols/2)
+        extract_pos = int((self.rows + 1) * self.cols / 2)
 
         # get first and second half of 2048 length vector (for 24x24 siarray)
-        srd = st[:self.pts, extract_pos]
-        sid = st[self.pts:, extract_pos]
+        srd = st[: self.pts, extract_pos]
+        sid = st[self.pts :, extract_pos]
         # commented out in ML code too
         # totalshift = (vertshift+horzshift)*3.14159
         totalshift = 0
-        scd = (srd + sid * complex(0, 1)) * \
-            np.exp(complex(0, 1)*totalshift)
+        scd = (srd + sid * complex(0, 1)) * np.exp(complex(0, 1) * totalshift)
         spectrum = np.concatenate((np.real(scd), np.imag(scd)))
-        return(spectrum)
+        return spectrum
 
     def ReconCoordinates3(self, scout: Scout, pos, writedir=None):
         """
@@ -271,7 +270,7 @@ class SIArray:
         # load the fractional pixel shifts
         # do the reconstruction
         # convert the data matrix to appropriate formt
-        spectrums = zeros((numrecon, self.pts*2), dtype='float64')
+        spectrums = zeros((numrecon, self.pts * 2), dtype="float64")
         for m in np.arange(numrecon):
             spectrum = self.spectrum(pospp[m, 0], pospp[m, 1])
             spectrums[m, :] = spectrum
@@ -280,24 +279,22 @@ class SIArray:
                 row = pos[m, 0]
                 col = pos[m, 1]
                 filename = "%s/spectrum.%d.%d" % (writedir, row, col)
-                with open(filename, 'wb') as f:
-                    spectrum.astype('<f4').tofile(f)
+                with open(filename, "wb") as f:
+                    spectrum.astype("<f4").tofile(f)
 
-        return(spectrums)
+        return spectrums
 
 
 def ignored_regencor_scoutarray2(scout: Scout, rotm):
-    """ this was part of RegenCoor, but is not used?"""
+    """this was part of RegenCoor, but is not used?"""
     res = scout.res
     # ## CROPPING VALUES
     # generate the rotated and translated scout again
     # this whole section to calculate cropping values
-    scoutarray = scout.data.T.reshape(1, res*res).flatten()
+    scoutarray = scout.data.T.reshape(1, res * res).flatten()
     # point-by-point matrix of loci, 3 rows x res*res columns=basm=scoutmatrx
     seq = np.arange(res) + 1
-    basm = np.vstack((np.tile(seq, res),
-                      np.repeat(seq, res),
-                      np.ones(res**2)))
+    basm = np.vstack((np.tile(seq, res), np.repeat(seq, res), np.ones(res**2)))
     scoutmatrx = basm
     # rotated imagearray (2r x 3c) * (3r x 65536 cols)
     xx = np.dot(rotm, scoutmatrx)
