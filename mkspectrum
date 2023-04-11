@@ -24,7 +24,7 @@ opt = docopt(__doc__)
 if opt.get('<posfile>'):
     pos = np.loadtxt(opt['<posfile>'])
 else:
-    pos=np.array([[float(opt['<row>']), float(opt['<col>'])]])
+    pos = np.array([[float(opt['<row>']), float(opt['<col>'])]])
 
 # make sure we have the right dimensions
 assert pos.shape[1] == 2
@@ -34,7 +34,7 @@ scout = Scout(None, res=int(opt['<scoutres>']))
 SI = SIArray(opt['<siarray1>'])
 
 # match matlab
-if opts.get('<kspacefile>'):
+if opt.get('<kspacefile>'):
     with open('test/data/matlab/kspace.1.1', 'r') as f:
         SI.kspace = np.fromfile(f, '<4f')
 
