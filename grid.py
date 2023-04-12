@@ -52,12 +52,13 @@ class ROI:
 
 
 class App(tk.Frame):
-    def __init__(self, master=None):
+    def __init__(self, master=None, roixy_list=None, ref=None, si=None):
         super().__init__(master)
         self.master = master
+        self.master.title("MRSI Coord Placer")
 
         # INIT
-        self.fnames = {"t1": None, "si": None, "gm": None, "roixy": None}
+        self.fnames = {"t1": ref, "si": si, "gm": None}
         self.imgs = {"ax-": None, "ax0": None, "ax+": None, "si": None}
         self.i_curroi = tk.IntVar(self)
         self.coords = None  # [ROI('roi1',[x, y])...]
@@ -66,6 +67,8 @@ class App(tk.Frame):
         self.scout = None  # holds scout resolution
 
         # DIMS
+        # TODO: these are for 7T MRSI. could be setting somewhere
+        #       instead of hardcoded
         self.pixdim = (216, 216, 99)
         self.voxdim = (9, 9, 10)
         self.sires = (24, 24)
@@ -77,8 +80,9 @@ class App(tk.Frame):
         # set by set_coords during load
         # needed for label update and to match box outline to listbox bg
         self.hexcolors = []
+        self.set_coords(roixy_list)
 
-        # remove me? - dont autoload
+        # autoload when start if t1 and si are defined
         self.load()
 
     def inc_roi_selected(self, step=1):
@@ -272,13 +276,12 @@ class App(tk.Frame):
 
     def load(self):
         """read imaging files"""
-        self.fnames["t1"] = "test/data/rorig.nii"
-        self.fnames["si"] = "test/data/siarray.1.1"
-        # TODO: load from file (or default to corner)
-        self.set_coords()
+        if not self.fnames['t1'] or not self.fnames['si']:
+            print("WARNING: missing t1 or si. cannot load")
+            return
         self.read_ni()
         self.update()
-        self.scout = Scout(None, res=216)
+        self.scout = Scout(None, res=self.pixdim[0]) # 216
 
     def save_spec(self, outdir="out"):
         "write positioned coordinates recon spectrum.xx.yy files"
@@ -287,12 +290,12 @@ class App(tk.Frame):
         s = self.siarray.ReconCoordinates3(self.scout, pos, outdir)
         print(s)
 
-    def set_coords(self):
-        self.coords = [
-            ROI("roi1", [10, 10]),
-            ROI("roi2", [10, 10]),
-            ROI("roi3", [10, 10]),
-        ]
+    def set_coords(self, roixy_list=None):
+        if not roixy_list:
+            print("WARNING: no rois to show!")
+            return
+
+        self.coords = [ROI(label, [x, y]) for (label,x,y) in roixy_list]
         mn = self.roiselect
         mn.delete(0, "end")
 
@@ -301,8 +304,8 @@ class App(tk.Frame):
         self.hexcolors = [
             "#%02x%02x%02x" % tuple(rgb[0:3]) for rgb in colors.astype(int).tolist()
         ]
-        for i, roi in enumerate([x.roi for x in self.coords]):
-            mn.insert("end", roi)
+        for i, roi in enumerate(self.coords):
+            mn.insert("end", roi.label())
             mn.itemconfig(i, {"bg": self.hexcolors[i]})
             # mn.add_command(label=roi, command=setroi(i))
 
@@ -317,12 +320,69 @@ class App(tk.Frame):
         self.canvas[canvas_key].focus_set()
 
 
+def read_rois(rois_list=[], roi_file=None):
+    """read rois. assign default x,y if not given (list)
+    and/or read from tab delem file with cols: roi,x,y"""
+    xdef,ydef, rois = 0, 0, []
+    #rois = [ [roi,xdef+=10,ydef+=10] for roi in pargs.roi_list]
+    for roi in rois_list:
+        xdef += 5
+        ydef += 5
+        rois.append([roi, xdef, ydef])
+
+    if roi_file:
+        with open(roi_file, "r") as f:
+            while l := f.readline():
+                roi, x, y = l.split('\t')
+                rois.append([roi,float(x),float(y)])
+    return rois
+
+
+def parse_args(args):
+    "read arguments for displaying grid"
+    import argparse
+    parser = argparse.ArgumentParser(description="")
+    parser.add_argument('-r','--ref',
+                        dest="ref_fname",
+                        help="Scout aligned reference image")
+    parser.add_argument('-s','--siarray',
+                        dest="si_fname",
+                        help="MRSI siarray.1.1 file")
+    parser.add_argument('-i','--roi_initial',
+                        dest="roi_file",
+                        default=None,
+                        help="tab delim roi,x,y coordates. x,y are initial guesses")
+    parser.add_argument('-l', '--rois',
+                        dest="rois_list",
+                        nargs="+",
+                        default=[],
+                        help="roi labels if no initial guess, alt to --roi_initial")
+    parser.add_argument('-g','--gm_mask',
+                        dest="gm_file",
+                        default=None,
+                        help="gray matter mask. same res as reference image")
+
+    pargs = parser.parse_args(args)
+
+    rois = read_rois(pargs.rois_list, pargs.roi_file)
+    if not rois:
+        raise Exception("Must specify --rois or valid/nonempty --roi_initial file")
+
+    pargs.rois = rois
+
+    return pargs
+
+
 # TODO:
 #  * load GM+GM count
+#    - toggle gm mask
 #  * move to best GM
 #  * collision
 #  * right click for closest to click, not next num
+if __name__ == "__main__":
+    import sys
+    pargs = parse_args(sys.argv[1:])
 
-root = tk.Tk()
-app = App(master=root)
-app.mainloop()
+    root = tk.Tk()
+    app = App(master=root, roixy_list=pargs.rois, ref=pargs.ref_fname, si=pargs.si_fname)
+    app.mainloop()

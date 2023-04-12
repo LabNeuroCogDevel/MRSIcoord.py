@@ -1,4 +1,4 @@
-.PHONY: test
+.PHONY: test gui_example
 
 test:
 	python -m pytest test/
@@ -10,3 +10,6 @@ test:
 out/spectrum.112.88:
 	@mkdir -p out
 	./mkspectrum test/data/siarray.1.1 216 --pos 112 88 out/
+
+gui_example:
+	./grid.py  -s test/data/siarray.1.1  -r test/data/rorig.nii  -i test/data/roi_pos.txt  --rois roi4 roi6
