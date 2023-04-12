@@ -26,20 +26,11 @@ def ifft_spec(spec_fname, Nkeep=1024, Nx=1,Ny=1,NslsProc=1):
     output used for write_raw_jref
     """
 
-    # si = SIArray('out/spectrum.112.88', res=(1, 1))
-    # SL = si.data
-    # SP_SLS = si.to_complex()
-
-    SL = np.fromfile(spec_fname, "<f").reshape(2 * Nkeep,Nx,Ny)
-    # into complex
-    SP_SLS = np.zeros([Nkeep,Nx,Ny,NslsProc], dtype='complex') # f is float32 => single-precision
-    real = SL[0:Nkeep,:,:]
-    imag = 1j * SL[Nkeep+0:2*Nkeep,:,:]
-    SP_SLS[:,:,:,0] = real + imag
-    
-    SP_SLS=np.squeeze(SP_SLS)
+    si = SIArray(spec_fname, res=(1, 1))
+    SP_SLS = si.to_complex().squeeze()
     TD_SLS = ifft(SP_SLS)
-    TD_SLS[1::2] = (-1) * TD_SLS[1::2]
+    # 2nd and every other after needs to have sign flipped
+    TD_SLS[1::2] = -1* TD_SLS[1::2]
     return TD_SLS
     
 

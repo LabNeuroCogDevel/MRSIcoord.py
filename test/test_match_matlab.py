@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.io import loadmat
 from siarray import Scout, SIArray
+import numpy as np
 import lcmodel
 import pytest
 
@@ -104,18 +105,25 @@ def test_spectrum_save(tmpdir):
     spectrums = SI.ReconCoordinates3(scout, pos)
     ml_s3 = loadmat('test/data/matlab/spectrum_113.89')['spectrum']
     assert belowthres(spectrums[2,:], ml_s3, 10**-6)
+    
+def test_1difft():
+    ml = np.loadtxt('test/data/csi.raw.112.88',skiprows=7)
+    py = lcmodel.ifft_spec("test/data/spectrum.112.88")
+    py2 = np.stack([py.real,py.imag]).T
+    np.testing.assert_allclose(ml, py2, atol=6e-5)
 
-def test_1difft_csiraw():
-    # python -m pytest test/test_match_matlab.py -k 1difft -vv
-    # str diff on very large strings is slow!
-    pytest.skip("Inexact rounding/ifft")
+def test_1difft_csiraw_header():
     pycsiraw = lcmodel.write_raw_jref(None, lcmodel.ifft_spec("test/data/spectrum.112.88"))
     pycsiraw = pycsiraw.replace("ID='None'","ID='csi.raw'")
     with open("test/data/csi.raw.112.88", "r") as f:
         mlcsiraw = f.read()
 
-    # maybe want to test only the first lines?
-    assert pycsiraw == mlcsiraw
+    # only check the header: first 7 lines
+    n=8
+    assert pycsiraw.split('\n')[0:n] == mlcsiraw.split('\n')[0:n]
+
+    # python -m pytest test/test_match_matlab.py -k 1difft -vv
+    # str diff on very large strings is slow!
     
     #E         -    2.658653E-01  -1.907578E-01
     #E         ?          --             --

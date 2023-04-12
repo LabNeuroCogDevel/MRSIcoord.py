@@ -1,6 +1,7 @@
 import numpy as np
 from numpy import real, imag, zeros
 from numpy.fft import fftshift, ifft2
+import numpy.typing as npt
 
 
 class Offsets:
@@ -107,14 +108,21 @@ class SIArray:
             e = self.data.shape[0]
         return np.sum(self.data[s:e, :], 0).reshape(self.res)
 
+    def to_complex(self) -> npt.NDArray[complex]:
+        """
+        first half of self.data is real. second half is imag
+        combine as complex
+        """
+        real = self.data[: self.pts, :]
+        imag = self.data[self.pts :, :] * complex(0, 1)
+        return (real + imag).T.reshape(self.rows, self.cols, self.pts)
+
     def IFFTData(self):
         """inverse FFT to get back to kspace"""
         kspace = zeros([self.rows, self.cols, 2 * self.pts])
 
         # first half of dim1 is real, second half is imaginary component
-        SIData = (
-            self.data[: self.pts, :] + self.data[self.pts :, :] * complex(0, 1)
-        ).T.reshape(self.rows, self.cols, self.pts)
+        SIData = self.to_complex()
         # from matlab:
         #  SIData(15,13,82) == -1.0690e+02 - 5.3431e+01i
         #  SIData(20,6,507) == 2.2938e+02 + 1.8219e+02i
