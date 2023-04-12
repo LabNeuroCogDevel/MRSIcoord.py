@@ -11,5 +11,8 @@ out/spectrum.112.88:
 	@mkdir -p out
 	./mkspectrum test/data/siarray.1.1 216 --pos 112 88 out/
 
+out/spectrum.112.88.dir/: out/spectrum.112.88
+	octave --eval "addpath('$$PWD/matlab/lcmodel/'); cd out/; lcmodel_spec('spectrum.112.88')"
+
 gui_example:
 	./grid.py  -s test/data/siarray.1.1  -r test/data/rorig.nii  -i test/data/roi_pos.txt  --rois roi4 roi6

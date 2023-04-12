@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.io import loadmat
 from siarray import Scout, SIArray
+import lcmodel
 import pytest
 
 def belowthres(x,y,thres=10**-10):
@@ -103,3 +104,31 @@ def test_spectrum_save(tmpdir):
     spectrums = SI.ReconCoordinates3(scout, pos)
     ml_s3 = loadmat('test/data/matlab/spectrum_113.89')['spectrum']
     assert belowthres(spectrums[2,:], ml_s3, 10**-6)
+
+def test_1difft_csiraw():
+    # python -m pytest test/test_match_matlab.py -k 1difft -vv
+    # str diff on very large strings is slow!
+    pytest.skip("Inexact rounding/ifft")
+    pycsiraw = lcmodel.write_raw_jref(None, lcmodel.ifft_spec("test/data/spectrum.112.88"))
+    pycsiraw = pycsiraw.replace("ID='None'","ID='csi.raw'")
+    with open("test/data/csi.raw.112.88", "r") as f:
+        mlcsiraw = f.read()
+
+    # maybe want to test only the first lines?
+    assert pycsiraw == mlcsiraw
+    
+    #E         -    2.658653E-01  -1.907578E-01
+    #E         ?          --             --
+    #E         +    2.658546E-01  -1.907615E-01
+    #E         ?         ++             ++
+    #E         -   -2.113438E-01  -3.969765E-02
+    #E         ?         ^ -           ^^^^
+    #E         +   -2.113213E-01  -3.971634E-02
+    #E         ?         ^^           ++ ^^
+    #E         -    1.346388E-01  -6.609750E-02
+    #E         +    1.346450E-01  -6.610133E-02
+    #E         -   -3.491483E-01  -8.017540E-03
+    #E         ?          ^^       ^ ^^  --
+    #E         +   -3.491475E-01  -7.996765E-03
+    #E         ?          ^^       ^ ^^^ +
+    
