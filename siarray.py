@@ -262,7 +262,7 @@ class SIArray:
         spectrum = np.concatenate((np.real(scd), np.imag(scd)))
         return spectrum
 
-    def ReconCoordinates3(self, scout: Scout, pos, writedir=None):
+    def ReconCoordinates3(self, scout: Scout, pos, writedir=None, specprefix="spectrum"):
         """
         generate spectrum from a given rorig coordinate
         @param pos - row, col postions to generate spectrum
@@ -286,7 +286,7 @@ class SIArray:
             if writedir:
                 row = pos[m, 0]
                 col = pos[m, 1]
-                filename = "%s/spectrum.%d.%d" % (writedir, row, col)
+                filename = "%s/%s.%d.%d" % (writedir, specprefix, row, col)
                 with open(filename, "wb") as f:
                     spectrum.astype("<f4").tofile(f)
 
