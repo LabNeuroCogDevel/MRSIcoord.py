@@ -1,14 +1,16 @@
 #!/usr/bin/env python
 
-import cv2  # resize: si integral to match rorig
 import tkinter as tk
-import numpy as np
+
+import cv2  # resize: si integral to match rorig
 import matplotlib.pyplot as plt  # for color scale
+import nibabel as nib
+import numpy as np
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg  # numpy plots
 from matplotlib.figure import Figure
 from PIL import Image, ImageTk
-import nibabel as nib
-from siarray import SIArray, Scout
+
+from siarray import Scout, SIArray
 
 
 # ## create new circle+box methods for tk.Canvas
@@ -276,12 +278,12 @@ class App(tk.Frame):
 
     def load(self):
         """read imaging files"""
-        if not self.fnames['t1'] or not self.fnames['si']:
+        if not self.fnames["t1"] or not self.fnames["si"]:
             print("WARNING: missing t1 or si. cannot load")
             return
         self.read_ni()
         self.update()
-        self.scout = Scout(None, res=self.pixdim[0]) # 216
+        self.scout = Scout(None, res=self.pixdim[0])  # 216
 
     def save_spec(self, outdir="out"):
         "write positioned coordinates recon spectrum.xx.yy files"
@@ -295,7 +297,7 @@ class App(tk.Frame):
             print("WARNING: no rois to show!")
             return
 
-        self.coords = [ROI(label, [x, y]) for (label,x,y) in roixy_list]
+        self.coords = [ROI(label, [x, y]) for (label, x, y) in roixy_list]
         mn = self.roiselect
         mn.delete(0, "end")
 
@@ -323,8 +325,8 @@ class App(tk.Frame):
 def read_rois(rois_list=[], roi_file=None):
     """read rois. assign default x,y if not given (list)
     and/or read from tab delem file with cols: roi,x,y"""
-    xdef,ydef, rois = 0, 0, []
-    #rois = [ [roi,xdef+=10,ydef+=10] for roi in pargs.roi_list]
+    xdef, ydef, rois = 0, 0, []
+    # rois = [ [roi,xdef+=10,ydef+=10] for roi in pargs.roi_list]
     for roi in rois_list:
         xdef += 5
         ydef += 5
@@ -333,34 +335,44 @@ def read_rois(rois_list=[], roi_file=None):
     if roi_file:
         with open(roi_file, "r") as f:
             while l := f.readline():
-                roi, x, y = l.split('\t')
-                rois.append([roi,float(x),float(y)])
+                roi, x, y = l.split("\t")
+                rois.append([roi, float(x), float(y)])
     return rois
 
 
 def parse_args(args):
     "read arguments for displaying grid"
     import argparse
+
     parser = argparse.ArgumentParser(description="")
-    parser.add_argument('-r','--ref',
-                        dest="ref_fname",
-                        help="Scout aligned reference image")
-    parser.add_argument('-s','--siarray',
-                        dest="si_fname",
-                        help="MRSI siarray.1.1 file")
-    parser.add_argument('-i','--roi_initial',
-                        dest="roi_file",
-                        default=None,
-                        help="tab delim roi,x,y coordates. x,y are initial guesses")
-    parser.add_argument('-l', '--rois',
-                        dest="rois_list",
-                        nargs="+",
-                        default=[],
-                        help="roi labels if no initial guess, alt to --roi_initial")
-    parser.add_argument('-g','--gm_mask',
-                        dest="gm_file",
-                        default=None,
-                        help="gray matter mask. same res as reference image")
+    parser.add_argument(
+        "-r", "--ref", dest="ref_fname", help="Scout aligned reference image"
+    )
+    parser.add_argument(
+        "-s", "--siarray", dest="si_fname", help="MRSI siarray.1.1 file"
+    )
+    parser.add_argument(
+        "-i",
+        "--roi_initial",
+        dest="roi_file",
+        default=None,
+        help="tab delim roi,x,y coordates. x,y are initial guesses",
+    )
+    parser.add_argument(
+        "-l",
+        "--rois",
+        dest="rois_list",
+        nargs="+",
+        default=[],
+        help="roi labels if no initial guess, alt to --roi_initial",
+    )
+    parser.add_argument(
+        "-g",
+        "--gm_mask",
+        dest="gm_file",
+        default=None,
+        help="gray matter mask. same res as reference image",
+    )
 
     pargs = parser.parse_args(args)
 
@@ -381,8 +393,11 @@ def parse_args(args):
 #  * right click for closest to click, not next num
 if __name__ == "__main__":
     import sys
+
     pargs = parse_args(sys.argv[1:])
 
     root = tk.Tk()
-    app = App(master=root, roixy_list=pargs.rois, ref=pargs.ref_fname, si=pargs.si_fname)
+    app = App(
+        master=root, roixy_list=pargs.rois, ref=pargs.ref_fname, si=pargs.si_fname
+    )
     app.mainloop()

@@ -15,9 +15,10 @@ Options:
   outdir    directory to save the spectrum_row.col file(s)
   
 """
-from docopt import docopt
 import numpy as np
-from siarray import SIArray, Scout
+from docopt import docopt
+
+from siarray import Scout, SIArray
 
 opt = docopt(__doc__)
 # pos = np.array([[130,99], [121, 94], [113, 89]])

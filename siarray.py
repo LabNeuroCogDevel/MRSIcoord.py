@@ -1,7 +1,7 @@
 import numpy as np
-from numpy import real, imag, zeros
-from numpy.fft import fftshift, ifft2
 import numpy.typing as npt
+from numpy import imag, real, zeros
+from numpy.fft import fftshift, ifft2
 
 
 class Offsets:
@@ -262,7 +262,9 @@ class SIArray:
         spectrum = np.concatenate((np.real(scd), np.imag(scd)))
         return spectrum
 
-    def ReconCoordinates3(self, scout: Scout, pos, writedir=None, specprefix="spectrum"):
+    def ReconCoordinates3(
+        self, scout: Scout, pos, writedir=None, specprefix="spectrum"
+    ):
         """
         generate spectrum from a given rorig coordinate
         @param pos - row, col postions to generate spectrum
