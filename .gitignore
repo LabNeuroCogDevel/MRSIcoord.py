@@ -2,4 +2,4 @@ __pycache__/
 *.pyc
 *.swp
 out/
-matlab/lcmodel/lcmodel
+lcmodel/lcmodel

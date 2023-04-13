@@ -26,13 +26,30 @@ This will ideally provide a graphical interface to guide placing coordinates and
 **  Notes
    * basis function specific to MRRC 7T (PFC and Hc slices)
    * need to compile lcmodel for your system. see https://github.com/schorschinho/LCModel
+
+* Standalone python scripts
+see Makefile for examples in use
+** spectrum
+  ~mkspectrum~ extracts single series (1024 complex values) around a given coordinate (from 216x216 grid)
+  #+begin_src bash
+./mkspectrum test/data/siarray.1.1 216 --pos 112 88 out/
+# creates out/spectrum.112.88
+  #+end_src
+
+** lcmodel
+  ~lcmodel.py~ can be used as a stand alone script to run lcmodel on the above
+#+begin_src bash
+./lcmodel.py out/spectrum.112.88
+# creates  test/data/spectrum.112.88.dir/spreadsheet.csv
+#+end_src
+
 * Porting From Matlab
 
 ** Read/Write isn't lossless?
 
 After IFFT, matlab code saves to ~kspace.1.1~.
 Reading this file back in and comparing to itself we can see lossy-ness around 10^{-3}.
-The figure max color is 10^{-5}. The same can be seen using matlab (but harder to render here).
+The figure max color is 10^{-5}.  Plot shows siarray (python) IFFT against itself (matlab) fwrite exported version. The same difference is seen comparing fwrite output with matlab's IFFT.
 
    #+BEGIN_SRC python :session :export both :file imgs/lossy-kspace.png
      import matplotlib.pyplot as plt

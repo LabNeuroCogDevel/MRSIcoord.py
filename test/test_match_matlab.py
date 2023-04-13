@@ -106,14 +106,15 @@ def test_spectrum_save(tmpdir):
     ml_s3 = loadmat('test/data/matlab/spectrum_113.89')['spectrum']
     assert belowthres(spectrums[2,:], ml_s3, 10**-6)
     
-def test_1difft():
+def test_1d_ifft():
     ml = np.loadtxt('test/data/csi.raw.112.88',skiprows=7)
-    py = lcmodel.ifft_spec("test/data/spectrum.112.88")
+    py = lcmodel.ifft_spec("test/data/spectrum.112.88", npoints=1024)
     py2 = np.stack([py.real,py.imag]).T
     np.testing.assert_allclose(ml, py2, atol=6e-5)
 
-def test_1difft_csiraw_header():
-    pycsiraw = lcmodel.write_raw_jref(None, lcmodel.ifft_spec("test/data/spectrum.112.88"))
+def test_1d_ifft_csiraw_header():
+    lcm = lcmodel.LCModel("test/data/spectrum.112.88", lcmodel_path=None)
+    pycsiraw = lcm.write_raw_jref(csi_raw_fname=None)
     pycsiraw = pycsiraw.replace("ID='None'","ID='csi.raw'")
     with open("test/data/csi.raw.112.88", "r") as f:
         mlcsiraw = f.read()

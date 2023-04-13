@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """
 wrap around lcmodel.
 spectrum data extracted from siarray.1.1 (1024 complex points): IFFT around coordinate
@@ -6,60 +7,180 @@ see mkspectrum (siarray.py)
 from siarray import SIArray
 import numpy as np
 from numpy.fft import ifft
+import numpy.typing as npt
+import os
+import subprocess
 
-def ifft_spec_WRONG(spec_fname):
-    """spectrum.xx.yy is same format as siarray.1.1. we can reuse fft from there (TODO: confirm)
-    @param spec_fname - spectrum.xx.yy file output from coordinate placement
-    @return kspace (IFFT) 1024 complex values"""
-    si = SIArray(spec_fname, res=(1, 1))
-    si.IFFTData()
-    arr = si.kspace.squeeze()
-    # pair complex data
-    n = len(arr)//2 # 1024
-    #paired = np.stack([arr[0:n], arr[n:]])
-    paired = np.stack([arr[0::2], arr[1::2]])
-    return paired
-
-def ifft_spec(spec_fname, Nkeep=1024, Nx=1,Ny=1,NslsProc=1):
+def write_string(fname: str, contents: str) -> None:
     """
-    read in the and ifft the (likely) 1x1024 complex specturm saved by coordinate placement
-    output used for write_raw_jref
+    write string to file. do nothing if fname is None or empty.
+    (empty fname used for testing)
+    """
+    if not fname:
+        return
+    with open(fname,'w') as f:
+        f.write(contents)
+
+def ifft_spec(spec_fname: str, npoints: int) -> npt.NDArray[complex]:
+    """
+    read in the and ifft complex spectrum of at individual coordinate
+    output used for LCModel.write_raw_jref
+    
+    :param spec_fname: little endian float input vector file
+    :param npoints: number of complex elements in input (1/2 total: real + imag)
+    :returns: 1D ifft complex values
     """
 
-    si = SIArray(spec_fname, res=(1, 1))
+    si = SIArray(spec_fname, res=(1, 1), pts=npoints)
     SP_SLS = si.to_complex().squeeze()
     TD_SLS = ifft(SP_SLS)
     # 2nd and every other after needs to have sign flipped
     TD_SLS[1::2] = -1* TD_SLS[1::2]
     return TD_SLS
-    
 
-def write_raw_jref(fName, complex_ifft, TE=17, axPPM=297.211197):
-    """
-    csi.raw lcmodel input file. adapated from MRRC Matlab code. simplified to always use J-REF
-    @fName file to write to
-    @dataLC data from spectrum IFFT at corrdinate. expect 1024 complex values for 7T
-    @TE echo time (default to 17ms)
-    @axPPM ???? (default to 7T value, matlab mentions Prisma value=123254000)
+
+class LCModel:
+    def __init__(self, spec_file: str,
+                 lcmodel_path: str,
+                 npoints=1024, axPPM=297.211197,
+                 RBW=3000.0, TE=17,
+                 basis="lcmodel/basis-sets/gamma_7TJref_te34_297mhz_no2HG_1.basis"):
+        """
+        LCModel object from a spectrum file (list of complex values from placed coordinate)
+        :param spec_file: file w/ single vector of complex values.
+                          little endian. see SIArray for reading notes
+        :param lcmodel_path: path to lcmodel binary
+        :param npoints:   number of complex values expected in spec file
+        :param axPPM:     7T default, prisma value=123.254000
+        :param RBW:       Hz, 7T default 3T value=1301 
+        :param TE:        Echo Time. 7T default (17ms)
+        :param basis:     basis function file for lcmodel control input
+        :returns: LCModel object
+        """
+        self.axPPM = axPPM
+        self.RBW = RBW
+        self.TE = TE
+        self.basis = os.path.abspath(basis)
+        self.npoints = npoints
+        self.lcmodel_path = os.path.abspath(lcmodel_path)
+        self.spec_file = spec_file # only used to create default directory
+        self.complex_ifft = ifft_spec(spec_file, self.npoints)
+
+        # updated by write_raw_jref, used by write_control
+        self.csi_raw_fname = None
+        # updated by write_control used by lcmodel()
+        self.control_fname = None
+        
+    def run(self, outdir=None):
+        """
+        create lcmodel temporary files and run
+        """
+        if not outdir:
+            outdir = self.spec_file + ".dir"
+        os.makedirs(outdir, exist_ok=True)
+        pwd = os.getcwd()
+        os.chdir(outdir)
+        raw_str = self.write_raw_jref()
+        control_str = self.write_control()
+        ret = self.lcmodel()
+        os.chdir(pwd)
+        return ret
     
-    NB. 15.6E formating specific to lcmodel on linux?
-    """
-    # header is mostly static text (dynamic for fname, te, and ax).
-    # spacing, additional . after TE matches ml output. unclear if needed
-    raw=f""" $SEQPAR
- ECHOT ={2*TE}.
- HZPPPM={axPPM}
+    def lcmodel(self):
+        """run lcmodel on control file. be sure to create temporary files first."""
+        cmd = f"{self.lcmodel_path} < {self.control_fname}"
+        return subprocess.run(cmd, shell=True).returncode
+        #print(cmd)
+        #return os.system(cmd)
+    
+    def write_raw_jref(self, csi_raw_fname="csi.raw") -> str:
+        """
+        csi.raw lcmodel input file. adapted from MRRC Matlab code.
+        simplified to always use J-REF
+        NB. 15.6E formatting specific to lcmodel on linux?
+
+        :param fname: file to write to
+                      if None, will only return file contents as string
+        :returns: string of file csi.raw contents
+        """
+
+        # header is mostly static text (dynamic for fname, te, and ax).
+        # spacing, additional . after TE matches ml output. unclear if needed
+        raw=f""" $SEQPAR
+ ECHOT ={2*self.TE}.
+ HZPPPM={self.axPPM}
  SEQ = 'J-REF'
  $END
- $NMID ID='{fName}', FMTDAT='(2e15.6)'
+ $NMID ID='{csi_raw_fname}', FMTDAT='(2e15.6)'
  TRAMP= 1.0, VOLUME=1 $END\n"""
-    # 15 characters with 6 decimal places and Exx
-    raw+="\n".join([f"{np.real(x):15.6E}{np.imag(x):15.6E}" for x in complex_ifft])
-    raw+="\n" # to match matlab, not necessarily b/c lcmodel requires
+        # 15 characters with 6 decimal places and Exx
+        raw+="\n".join([f"{np.real(x):15.6E}{np.imag(x):15.6E}" for x in self.complex_ifft])
+        raw+="\n" # to match matlab, not necessarily b/c lcmodel requires
+    
+        # can test function with fName=None to just check string
+        write_string(csi_raw_fname, raw)
+        self.csi_raw_fname = csi_raw_fname
+        return raw
 
-    # can test function with fName=None to just check string
-    if fName:
-        with open(fName,'w') as f:
-            print(f, raw)
-    return raw
 
+
+    def write_control(self, control_fname='csi.control') -> str:
+        """
+        construct lcmodel control file
+        """
+        
+        self.control_fname = control_fname
+
+        # .0003333 (no leading zero)
+        DELTAT = str(round(1/self.RBW, 7)).replace('0.','.')
+
+        control_str=f""" $LCMODL
+ TITLE= '{control_fname}' 
+ FILBAS= '{self.basis}'
+ FILRAW='{self.csi_raw_fname}' 
+ FILCOO='csi.coord' 
+ FILCSV='spreadsheet.csv' 
+ FILPS='csi.ps' 
+ HZPPPM={self.axPPM}
+ NUNFIL={self.npoints}
+ DELTAT={DELTAT}
+ NDCOLS = 1
+ NDROWS = 1
+ NDSLIC = 1
+ ICOLST = 1
+ ICOLEN = 1
+ IROWST = 1
+ IROWEN = 1
+ ISLICE = 1
+ neach = 10
+ nameac(10) = 'mI' 
+ nameac(9) = 'Gln' 
+ nameac(8) = 'GABA' 
+ nameac(7) = 'GSH' 
+ nameac(6) = 'Glu' 
+ nameac(5) = 'GPC' 
+ nameac(4) = 'NAAG' 
+ nameac(3) = 'NAA' 
+ nameac(2) = 'Cho' 
+ nameac(1) = 'Cre' 
+ IPAGE2 = 0
+ PPMST=4
+ PPMEND=1.8
+ LCOORD=9
+ LCSV=11
+ $END"""
+        write_string(control_fname, control_str)
+        return control_str
+
+    
+def run_lcmodel(args):
+    lcmodel_path=os.path.join(os.path.dirname(__file__),"lcmodel/lcmodel")
+    basis_path=os.path.join(os.path.dirname(lcmodel_path),
+                            "basis-sets/gamma_7TJref_te34_297mhz_no2HG_1.basis")
+    spec_file = args[1] # "test/data/spectrum.112.88"
+    lcm = LCModel(spec_file, lcmodel_path, basis=basis_path)
+    lcm.run()
+
+if __name__ == "__main__":
+    import sys
+    run_lcmodel(sys.argv)
