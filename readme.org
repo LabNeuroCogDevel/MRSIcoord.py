@@ -21,11 +21,11 @@ This will ideally provide a graphical interface to guide placing coordinates and
      * greatest GM count
      * still classified as region of interest (anatomy)
    * generate spectrum files
-   * run lcmodel (compile from https://github.com/schorschinho/LCModel )
+   * run ~lcmodel~. (see  ~make lcmodel/lcmodel~)
   
 **  Notes
    * basis function specific to MRRC 7T (PFC and Hc slices)
-   * need to compile lcmodel for your system. see https://github.com/schorschinho/LCModel
+   * need to compile lcmodel (https://github.com/schorschinho/LCModel) for your system and put the binary in the lcmodel folder as ~lcmodel/lcmodel~. there is a Makefile rule for this
 
 * Standalone python scripts
 see Makefile for examples in use

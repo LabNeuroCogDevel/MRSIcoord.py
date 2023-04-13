@@ -5,6 +5,11 @@ test:
 	# this matlab bit works the same as the other
 	diff test/data/matlab/output/kspace.1.1  /Volumes/Hera/Projects/7TBrainMech/subjs/11743_20190802/slice_PFC/MRSI_roi/raw//kspace.1.1
 
+## compile lcmodel from source (via github) and copy here
+lcmodel/lcmodel:
+	git clone https://github.com/schorschinho/LCModel lcmodel-fortran
+	make -C lcmodel-fortran
+	cp lcmodel-fortran/binaries/linux/lcmodel $@
 
 ## GUI program
 gui_example:
