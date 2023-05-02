@@ -1,7 +1,23 @@
+"""
+Port of MRRC's sid3 and SVR1HFinal (matlab)
+
+rhea:/opt/ni_tools/matlab_toolboxes/MRRC/
+"""
 import numpy as np
 import numpy.typing as npt
 from numpy import imag, real, zeros
 from numpy.fft import fftshift, ifft2
+
+
+# see DisplaySIImage.m,  AdjustSIImage.m, ReadSliderText2.m
+def adjust(img, brightness, contrast, gamma=1):
+    """[a,b] to [c,d] with gamma. like imadjust in matlab"""
+    a = np.min(img)
+    b = np.min(img)
+    c = brightness
+    d = (1.0-c)*contrast
+    # imadjust
+    return (((img - a) / (b - a)) ** gamma) * (d - c) + c
 
 
 class Offsets:
@@ -103,7 +119,8 @@ class SIArray:
         self.data = SI
 
     def integrateSI(self, s, e=None):
-        """sum from start to end"""
+        """sum from start to end. sid3:IntegrateSI.m"""
+
         if not e:
             e = self.data.shape[0]
         return np.sum(self.data[s:e, :], 0).reshape(self.res)
