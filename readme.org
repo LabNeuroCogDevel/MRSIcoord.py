@@ -1,5 +1,5 @@
 * MRSI ROI selection
-This will ideally provide a graphical interface to guide placing coordinates and extracting MR spectrum.
+This will ideally provide a graphical interface to guide placing coordinates and extracting MR spectrum -- a python port of the slow-to-load, hard-to-hack, and unusable-over-X11Forwarding matlab version in [[matlab/]].
 
 [[file:imgs/py_screenshot.png]]
 
@@ -26,6 +26,7 @@ This will ideally provide a graphical interface to guide placing coordinates and
 **  Notes
    * basis function specific to MRRC 7T (PFC and Hc slices)
    * need to compile lcmodel (https://github.com/schorschinho/LCModel) for your system and put the binary in the lcmodel folder as ~lcmodel/lcmodel~. there is a Makefile rule for this
+   * "~sid3~" coordinate/matrix order convention is inherited from MRRC: COL, ROW? (fortran column-major)  TODO: confirm! 
 
 * Standalone python scripts
 see Makefile for examples in use
@@ -44,6 +45,27 @@ see Makefile for examples in use
 #+end_src
 
 * Porting From Matlab
+
+** SID3 coordinate/matrix order
+
+  TODO:
+  * confirm python is using "sid3" and matches matlab.
+  * python saves coord and sid_coord files (need to replace LNCD  pipeline)
+
+#+begin_src bash
+# converting sid3 spectrum.xx.yy filename to match afni's center of mass warped rois '3dCM -local_ijk'
+sid3(){ awk '{print 216-$3+1 "\t" 216-$2+1}' "$@"; }
+
+roi_slice_ijk(){
+  # incomplete summary of /Volumes/Hera/Projects/7TBrainMech/scripts/mri/MRSI_roi/000_setupdirs.bash
+  # (1) warp mni atlas roi to slice space. (2) keep only center slice (match MRSI acq). (3) get center of rois
+  # roi centers used as starting point for gui placement
+  applywarp -o $outimg -i $mni_atlas -r $pfc_ref -w $mni_to_t1 --postmat=$t1_to_pfc --interp=nn
+  3dcalc -a "$outimg" -expr "equals(k,$slice_num_0)*a" -prefix middle_slice.nii.gz -overwrite
+  3dresample -prefix $res_img -inset middle_slice.nii.gz -master rorig.nii.gz
+  3dCM -local_ijk -all_rois $res_img | egrep '^[0-9]|#ROI'|paste - - |cut -f2-4 -d" "
+}
+#+end_src
 
 ** Read/Write isn't lossless?
 
