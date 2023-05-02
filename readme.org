@@ -49,7 +49,7 @@ see Makefile for examples in use
 
 After IFFT, matlab code saves to ~kspace.1.1~.
 Reading this file back in and comparing to itself we can see lossy-ness around 10^{-3}.
-The figure max color is 10^{-5}.  Plot shows siarray (python) IFFT against itself (matlab) fwrite exported version. The same difference is seen comparing fwrite output with matlab's IFFT.
+The figure max color is 10^{-5}.  Plot shows siarray (python) IFFT against itself (matlab fwrite exported version). The same difference is seen comparing fwrite output with matlab's IFFT.
 
    #+BEGIN_SRC python :session :export both :file imgs/lossy-kspace.png
      import matplotlib.pyplot as plt
