@@ -97,7 +97,7 @@ def test_spectrum():
     with open("test/data/matlab/kspace.1.1", "r") as f:
         SI.kspace = np.fromfile(f, "<4f")
 
-    spectrums = SI.ReconCoordinates3(scout, pos)
+    (spectrums, files) = SI.ReconCoordinates3(scout, pos)
     ml_s3 = loadmat("test/data/matlab/spectrum_113.89")["spectrum"]
     assert belowthres(spectrums[2, :], ml_s3)
 
@@ -109,7 +109,7 @@ def test_spectrum_save(tmpdir):
     SI.IFFTData()
     SI.savekspace(tmpdir.join("temp_kspace.1.1"), reload=True)
 
-    spectrums = SI.ReconCoordinates3(scout, pos)
+    (spectrums, files) = SI.ReconCoordinates3(scout, pos)
     ml_s3 = loadmat("test/data/matlab/spectrum_113.89")["spectrum"]
     assert belowthres(spectrums[2, :], ml_s3, 10**-6)
 

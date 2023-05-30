@@ -193,9 +193,10 @@ def run_lcmodel(args):
         os.path.dirname(lcmodel_path),
         "basis-sets/gamma_7TJref_te34_297mhz_no2HG_1.basis",
     )
-    spec_file = args[1]  # "test/data/spectrum.112.88"
-    lcm = LCModel(spec_file, lcmodel_path, basis=basis_path)
-    lcm.run()
+    for spec_file in args:  # "test/data/spectrum.112.88"
+        print(f"running lcmodel for: '{spec_file}'")
+        lcm = LCModel(spec_file, lcmodel_path, basis=basis_path)
+        lcm.run()
 
 
 if __name__ == "__main__":

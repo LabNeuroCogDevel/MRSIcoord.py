@@ -11,6 +11,7 @@ from matplotlib.figure import Figure
 from PIL import Image, ImageTk
 
 from siarray import Scout, SIArray
+import lcmodel
 
 
 # ## create new circle+box methods for tk.Canvas
@@ -240,7 +241,7 @@ class App(tk.Frame):
         if not self.scout:
             return
         pos = np.array([self.coords[0].xy])
-        spectrums = self.siarray.ReconCoordinates3(self.scout, pos)
+        (spectrums, fnames) = self.siarray.ReconCoordinates3(self.scout, pos)
         self.axes["spc"].clear()
         self.axes["spc"].plot(spectrums[0])
         self.canvas["spc"].draw()
@@ -293,10 +294,10 @@ class App(tk.Frame):
 
     def save_spec(self, outdir="out"):
         "write positioned coordinates recon spectrum.xx.yy files"
-        print("WARNING: need to check against matlab gui still!")
         pos = np.array([c.sid3(self.scout.res) for c in self.coords])
-        s = self.siarray.ReconCoordinates3(self.scout, pos, outdir)
-        print(s)
+        (specs, fnames) = self.siarray.ReconCoordinates3(self.scout, pos, outdir)
+        print(specs)
+        lcmodel.run_lcmodel(fnames)
 
     def set_coords(self, roixy_list=None):
         if not roixy_list:

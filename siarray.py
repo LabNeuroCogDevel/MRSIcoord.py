@@ -285,7 +285,7 @@ class SIArray:
         """
         generate spectrum from a given rorig coordinate
         @param pos - row, col postions to generate spectrum
-        @return spectrums - n_pos x self.pts*2 array of spectrums
+        @return (spectrums,files) - n_pos x self.pts*2 array of spectrums and output filenames
         >>> pos = np.array([[130, 99], [121, 94], [113, 89]])
         """
 
@@ -298,6 +298,7 @@ class SIArray:
         # do the reconstruction
         # convert the data matrix to appropriate formt
         spectrums = zeros((numrecon, self.pts * 2), dtype="float64")
+        filenames = [None] * numrecon
         for m in np.arange(numrecon):
             spectrum = self.spectrum(pospp[m, 0], pospp[m, 1])
             spectrums[m, :] = spectrum
@@ -305,11 +306,11 @@ class SIArray:
             if writedir:
                 row = pos[m, 0]
                 col = pos[m, 1]
-                filename = "%s/%s.%d.%d" % (writedir, specprefix, row, col)
-                with open(filename, "wb") as f:
+                filenames[m] = "%s/%s.%d.%d" % (writedir, specprefix, row, col)
+                with open(filenames[m], "wb") as f:
                     spectrum.astype("<f4").tofile(f)
 
-        return spectrums
+        return (spectrums,filenames)
 
 
 def ignored_regencor_scoutarray2(scout: Scout, rotm):

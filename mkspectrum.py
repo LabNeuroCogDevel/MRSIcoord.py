@@ -55,7 +55,7 @@ def mkspectrum(opt):
         with open(opt.get("--kspace"), "r") as f:
             SI.kspace = np.fromfile(f, "<4f")
 
-    s = SI.ReconCoordinates3(scout, opt['pos'], opt["<outdir>"])
+    s, f = SI.ReconCoordinates3(scout, opt['pos'], opt["<outdir>"])
     print(s)
 
 if __name__ == "__main__":
