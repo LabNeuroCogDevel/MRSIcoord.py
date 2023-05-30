@@ -5,8 +5,8 @@
 % calls are distilled versions of 
 function genrate_mat
 
-rows=24
-cols=24
+rows=24;
+cols=24;
 
 %% binary float read (little indian)
 % scout as mat (despite the .mat, this file is not a standard matlab mat file)
@@ -22,6 +22,7 @@ save('test/data/matlab/scout.mat', 'scout')
 siname='test/data/siarray.1.1';
 sires=24,sipts=1024, sisliceno=1 
 offsetptr=0
+disp(['writting ' siname])
 fp1 = fopen(siname,'r');
 fseek(fp1,offsetptr,'bof');
 SI = fread(fp1,[2*sipts sires*sires],'float');
@@ -49,7 +50,9 @@ for a=1:np
 end
 save('test/data/matlab/kspace.mat', 'kspace')
 
-kspaceoutname='test/data/matlab/output/kspace.1.1';
+kspaceoutname='test/data/matlab/kspace.1.1';
+%mkdir('test/data/matlab/');
+disp(['writting ' kspaceoutname])
 fp2 = fopen(kspaceoutname,'w');
 for a=1:rows
     for b=1:cols
