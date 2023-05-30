@@ -120,3 +120,21 @@ corr(a,b) % 1.0000
 %   5.4422e+03
 %   5.4421e+03
 #+END_SRC
+
+** Positions
+#+BEGIN_SRC MATLAB
+% ./grid.py  -s test/data/siarray.1.1  -r test/data/rorig.nii  -i test/data/roi_pos.txt  --rois roi4 roi6
+cd matlab
+coord_mover('test', 'subjcoords', '../test/data/pos_z.txt', 'brain', '../test/data/rorig.nii')
+fid = fopen('../test/data/WF/spectrum.78.66'); ml7866 = fread(fid,'single');
+fid = fopen('../out/spectrum.78.66'); py7866 = fread(fid,'single');
+hist(ml7866 - py7866)
+max(abs(ml7866 - py7866))
+%   9.3126e-04
+mean(abs(ml7866 - py7866))
+%   4.0350e-05
+[std(py7866), max(py7866)]
+%   1.0e+03 * 0.2648    1.6928
+#+END_SRC
+
+[[file:imgs/mrsicoord_placement_ml_vs_py.png]]

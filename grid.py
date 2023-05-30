@@ -49,12 +49,18 @@ class ROI:
 
         self.xy = [(self.xy[0] + x) % dim[0], (self.xy[1] + y) % dim[1]]
 
-    def label(self):
-        return f"{self.roi} {self.xy[0]} {self.xy[1]}"
+    def sid3(self, res_edge):
+        "return (y, x) reverse direction"
+        # [int(res_edge - p) for p in reverse(self.xy)]
+        return (int(self.xy[1]), int(res_edge - self.xy[0]))
+
+    def label(self, res_edge):
+        pos = self.sid3(res_edge)
+        return f"{self.roi} {pos[0]} {pos[1]}"
 
 
 class App(tk.Frame):
-    def __init__(self, master=None, roixy_list=None, ref=None, si=None):
+    def __init__(self, master=None, roixy_list=None, ref=None, si=None, sires=24):
         super().__init__(master)
         self.master = master
         self.master.title("MRSI Coord Placer")
@@ -73,7 +79,7 @@ class App(tk.Frame):
         #       instead of hardcoded
         self.pixdim = (216, 216, 99)
         self.voxdim = (9, 9, 10)
-        self.sires = (24, 24)
+        self.sires = (sires, sires)
 
         # VIS
         self.pack()
@@ -220,7 +226,7 @@ class App(tk.Frame):
             return
         # listbox curselection is (index, None)
         i = i[0]
-        title = self.coords[i].label()
+        title = self.coords[i].label(self.scout.res if self.scout else 216)
 
         # no way to change label? rm and add back
         # color is cleared with delete, need to restore
@@ -288,7 +294,7 @@ class App(tk.Frame):
     def save_spec(self, outdir="out"):
         "write positioned coordinates recon spectrum.xx.yy files"
         print("WARNING: need to check against matlab gui still!")
-        pos = np.array([c.xy for c in self.coords])
+        pos = np.array([c.sid3(self.scout.res) for c in self.coords])
         s = self.siarray.ReconCoordinates3(self.scout, pos, outdir)
         print(s)
 
@@ -306,8 +312,9 @@ class App(tk.Frame):
         self.hexcolors = [
             "#%02x%02x%02x" % tuple(rgb[0:3]) for rgb in colors.astype(int).tolist()
         ]
+        sctres = self.scout.res if self.scout else 216
         for i, roi in enumerate(self.coords):
-            mn.insert("end", roi.label())
+            mn.insert("end", roi.label(sctres))
             mn.itemconfig(i, {"bg": self.hexcolors[i]})
             # mn.add_command(label=roi, command=setroi(i))
 
@@ -373,6 +380,12 @@ def parse_args(args):
         default=None,
         help="gray matter mask. same res as reference image",
     )
+    parser.add_argument(
+        "--sires",
+        dest="sires",
+        default=24,
+        help="resolution of SI (matrix size, symetrical)",
+    )
 
     pargs = parser.parse_args(args)
 
@@ -398,6 +411,6 @@ if __name__ == "__main__":
 
     root = tk.Tk()
     app = App(
-        master=root, roixy_list=pargs.rois, ref=pargs.ref_fname, si=pargs.si_fname
+        master=root, roixy_list=pargs.rois, ref=pargs.ref_fname, si=pargs.si_fname, sires=pargs.sires
     )
     app.mainloop()
