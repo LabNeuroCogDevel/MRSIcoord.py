@@ -71,6 +71,8 @@ class LCModel:
         self.TE = TE
         self.basis = os.path.abspath(basis)
         self.npoints = npoints
+        if not lcmodel_path:
+            lcmodel_path = os.path.join(os.path.dirname(__file__), "lcmodel/lcmodel")
         self.lcmodel_path = os.path.abspath(lcmodel_path)
         self.spec_file = spec_file  # only used to create default directory
         self.complex_ifft = ifft_spec(spec_file, self.npoints)
@@ -97,6 +99,9 @@ class LCModel:
 
     def lcmodel(self):
         """run lcmodel on control file. be sure to create temporary files first."""
+        if not os.access(self.lcmodel_path, os.X_OK) or not os.path.isfile(self.lcmodel_path):
+            raise Exception(f"do not have valid lcmodel binary '{self.lcmodel_path}'")
+
         cmd = f"{self.lcmodel_path} < {self.control_fname}"
         return subprocess.run(cmd, shell=True).returncode
         # print(cmd)
