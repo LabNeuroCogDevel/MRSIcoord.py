@@ -27,6 +27,7 @@ This will ideally provide a graphical interface to guide placing coordinates and
    * basis function specific to MRRC 7T (PFC and Hc slices)
    * need to compile lcmodel (https://github.com/schorschinho/LCModel) for your system and put the binary in the lcmodel folder as ~lcmodel/lcmodel~. there is a Makefile rule for this
    * "~sid3~" coordinate/matrix order convention is inherited from MRRC: COL, ROW? (fortran column-major)  TODO: confirm! 
+   * ~siarray.1.1~ is from VB/VD MRI raw Siemens 'twix' ~.dat~. See [[https://pypi.org/project/pyMapVBVD/][pyMapVBVD]] or original [[https://github.com/CIC-methods/FID-A/blob/master/inputOutput/mapVBVD/README.md][matlab]]. Not created here.
 
 * Standalone python scripts
 see Makefile for examples in use
@@ -49,7 +50,6 @@ see Makefile for examples in use
 ** SID3 coordinate/matrix order
 
   TODO:
-  * confirm python is using "sid3" and matches matlab.
   * python saves coord and sid_coord files (need to replace LNCD  pipeline)
 
 #+begin_src bash
@@ -108,13 +108,18 @@ find /Volumes/Hera/Projects/7TBrainMech/subjs/11743_20190802/slice_PFC/MRSI_roi/
 #+END_SRC
 
 * Testing MATLAB
-
+**  spectrum lossy read/write
+Same ~gen_spectrum~ is off by at most ~.0023~ on a value of ~5422.2~
 #+BEGIN_SRC MATLAB
 si='/Volumes/Hera/Projects/7TBrainMech/subjs/10129_20180917/slice_PFC/MRSI_roi/raw/siarray.1.1'
 gen_spectrum(si, 216, [112, 104], '/tmp')
 a=fread(fopen('/Volumes/Hera/Projects/7TBrainMech/subjs/10129_20180917/slice_PFC/MRSI_roi/raw/spectrum.112.104'),'float')
 b=fread(fopen('/tmp/spectrum_112.104'),'float');
+
+% exactly correlated
 corr(a,b) % 1.0000
+
+% but not identical (off by .0229 on value of ~5000)
 [v,i] = max(abs(a-b)); v, a(i), b(i),
 %   0.0229
 %   5.4422e+03
