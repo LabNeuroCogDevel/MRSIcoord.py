@@ -7,6 +7,7 @@ import numpy as np
 import numpy.typing as npt
 from numpy import imag, real, zeros
 from numpy.fft import fftshift, ifft2
+import os
 
 
 # see DisplaySIImage.m,  AdjustSIImage.m, ReadSliderText2.m
@@ -307,6 +308,7 @@ class SIArray:
                 row = pos[m, 0]
                 col = pos[m, 1]
                 filenames[m] = "%s/%s.%d.%d" % (writedir, specprefix, row, col)
+                os.makedirs(writedir, exist_ok=True)
                 with open(filenames[m], "wb") as f:
                     spectrum.astype("<f4").tofile(f)
 
