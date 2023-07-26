@@ -56,13 +56,14 @@ class ROI:
         # [int(res_edge - p) for p in reverse(self.xy)]
         return (int(self.xy[1]), int(res_edge - self.xy[0]))
 
-    def label(self, res_edge, gm_func=None):
+    def label(self, res_edge, gm_func=lambda x, y: None):
+        "what to show for this roi. sid3 coord and optionally gm mask count"
         pos = self.sid3(res_edge)
         lab = f"{self.roi} {pos[0]} {pos[1]}"
-        if gm_func:
-            gm = gm_func(*self.xy) # calc_gm from App
-            print(f"running calc_gm on {self.xy} = {gm}")
-            lab = lab + f"(gm: {gm})"
+        gm = gm_func(*self.xy) # calc_gm from App
+        if gm is not None:
+            lab = lab + f" (gm:{gm})"
+            #print(f"running calc_gm on {self.xy} = {gm}")
         return lab
 
 
@@ -235,13 +236,13 @@ class App(tk.Frame):
     def calc_gm(self, x, y):
         "sum gray matter mask at current si voxel (x,y = center)"
         if self.gm_img is None:
-            return 0
+            return None
         x = x - self.voxdim[0]//2
-        y = x - self.voxdim[1]//2
+        y = y - self.voxdim[1]//2
         z = self.pixdim[2]//2 - self.voxdim[2]//2
-        vol = self.gm_img[x:self.voxdim[0], y:self.voxdim[1], z:self.voxdim[0]]
-        print(f"gm: {x}:{self.voxdim[0]} {y} {z} = {vol}")
-        return np.sum(vol)
+        vol = self.gm_img[x:(x+self.voxdim[0]), y:(y+self.voxdim[1]), z:(z+self.voxdim[2])]
+        #print(f"gm {self.gm_img.shape}: {x}:{self.voxdim[0]} {y} {z} = {vol.shape}")
+        return int(np.sum(vol))
 
     def draw_images(self):
         """redraw all images"""

@@ -3,10 +3,16 @@ This will ideally provide a graphical interface to guide placing coordinates and
 
 [[file:imgs/py_screenshot.png]]
 
+```bash
+ ./grid.py \
+     -s test/data/siarray.1.1  -r test/data/rorig.nii --gm_mask test/data/gm_sum.nii.gz \
+     -i test/data/roi_pos.txt  --rois roi4 roi6 
+```
+
 ** Inputs
   * ~siarray.1.1~ - spectroscipy data. 1024 complex (1024 real, 1024 imaginary) points.
   * ~rorig.nii~ - structural MR registered to scout position
-  * ~gm_sum.nii~ - binary mask for if voxel is gm. sum of id Freesurfer gray matter regions.
+  * ~gm_sum.nii~ - binary mask for if voxel is gm. sum of id Freesurfer gray matter regions, also coregistered to the scout
   * ~coords.txt~ - initial guess at ROI positions (from mni atlas warp, center of mass). tab delim. w/columns: roilabel,x,y
 
 ** Output
@@ -24,9 +30,10 @@ This will ideally provide a graphical interface to guide placing coordinates and
    * run ~lcmodel~. (see  ~make lcmodel/lcmodel~)
   
 **  Notes
-   * basis function specific to MRRC 7T (PFC and Hc slices)
+   * Defaults assume an 216x216 1mm T1w/anatomical resolution and 9x9x10mm MRSI slice
+   * basis function specific to MRRC 7T (PFC and Hc slices) ./lcmodel/basis-sets/gamma_7TJref_te34_297mhz_no2HG_1.basis
    * need to compile lcmodel (https://github.com/schorschinho/LCModel) for your system and put the binary in the lcmodel folder as ~lcmodel/lcmodel~. there is a Makefile rule for this
-   * "~sid3~" coordinate/matrix order convention is inherited from MRRC: COL, ROW? (fortran column-major)  TODO: confirm! 
+   * "~sid3~" coordinate/matrix order convention is inherited from MRRC: COL, ROW? (fortran column-major)
    * ~siarray.1.1~ is from VB/VD MRI raw Siemens 'twix' ~.dat~. See [[https://pypi.org/project/pyMapVBVD/][pyMapVBVD]] or original [[https://github.com/CIC-methods/FID-A/blob/master/inputOutput/mapVBVD/README.md][matlab]]. Not created here.
 
 * Standalone python scripts
