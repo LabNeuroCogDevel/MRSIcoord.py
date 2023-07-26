@@ -28,8 +28,11 @@ tk.Canvas.create_circle = _create_circle
 tk.Canvas.create_box = _create_box
 
 
-def npimg(a):
-    return ImageTk.PhotoImage(image=Image.fromarray(a))
+def npimg(x, minimum, maximum):
+    # rescale so high valued niftis aren't too bright
+    x = np.round((x - minimum) / (maximum - minimum) * 255)
+    print(f"rescaling {minimum} to {maximum}. now {np.mean(x)}")
+    return ImageTk.PhotoImage(image=Image.fromarray(x))
 
 
 class ROI:
@@ -60,7 +63,7 @@ class ROI:
         "what to show for this roi. sid3 coord and optionally gm mask count"
         pos = self.sid3(res_edge)
         lab = f"{self.roi} {pos[0]} {pos[1]}"
-        gm = gm_func(*self.xy) # calc_gm from App
+        gm = gm_func(self.xy[0], self.xy[1]) # calc_gm from App
         if gm is not None:
             lab = lab + f" (gm:{gm})"
             #print(f"running calc_gm on {self.xy} = {gm}")
@@ -194,12 +197,17 @@ class App(tk.Frame):
 
         center = self.pixdim[2] / 2
         hlf = self.voxdim[2] / 2
-        img = self.t1
+
+        (mint1val, maxt1val) = np.percentile(self.t1, [2,98])
         if self.gm_img is not None and self.see_gm_mask:
-            img = numpy.ma.masked_array(img, self.gm_img == 0, fill_value=np.min(img))
-        self.imgs["ax-"] = npimg(img[:, :, int(center - hlf)])
-        self.imgs["ax0"] = npimg(img[:, :, int(center)])
-        self.imgs["ax+"] = npimg(img[:, :, int(center + hlf)])
+            #img = numpy.ma.masked_array(self.t1, self.gm_img < 1, fill_value=mint1val)
+            (mint1val, maxt1val) = (0,1)
+            img = self.gm_img
+        else:
+            img = np.copy(self.t1)
+        self.imgs["ax-"] = npimg(img[:, :, int(center - hlf)], mint1val, maxt1val)
+        self.imgs["ax0"] = npimg(img[:, :, int(center)], mint1val, maxt1val)
+        self.imgs["ax+"] = npimg(img[:, :, int(center + hlf)], mint1val, maxt1val)
 
     def read_ni(self):
         """populate self.imgs dictionary with each loaded neuroimage"""
@@ -237,11 +245,11 @@ class App(tk.Frame):
         "sum gray matter mask at current si voxel (x,y = center)"
         if self.gm_img is None:
             return None
-        x = x - self.voxdim[0]//2
-        y = y - self.voxdim[1]//2
-        z = self.pixdim[2]//2 - self.voxdim[2]//2
+        x = int(x - self.voxdim[0]//2)
+        y = int(y - self.voxdim[1]//2)
+        z = int(self.pixdim[2]//2 - self.voxdim[2]//2)
+        #print(f"gm {self.gm_img.shape}: {x} {y} {z} = for {self.voxdim}")
         vol = self.gm_img[x:(x+self.voxdim[0]), y:(y+self.voxdim[1]), z:(z+self.voxdim[2])]
-        #print(f"gm {self.gm_img.shape}: {x}:{self.voxdim[0]} {y} {z} = {vol.shape}")
         return int(np.sum(vol))
 
     def draw_images(self):
