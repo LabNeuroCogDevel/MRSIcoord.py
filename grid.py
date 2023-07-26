@@ -6,6 +6,7 @@ import cv2  # resize: si integral to match rorig
 import matplotlib.pyplot as plt  # for color scale
 import nibabel as nib
 import numpy as np
+import numpy.ma
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg  # numpy plots
 from matplotlib.figure import Figure
 from PIL import Image, ImageTk
@@ -55,25 +56,32 @@ class ROI:
         # [int(res_edge - p) for p in reverse(self.xy)]
         return (int(self.xy[1]), int(res_edge - self.xy[0]))
 
-    def label(self, res_edge):
+    def label(self, res_edge, gm_func=None):
         pos = self.sid3(res_edge)
-        return f"{self.roi} {pos[0]} {pos[1]}"
+        lab = f"{self.roi} {pos[0]} {pos[1]}"
+        if gm_func:
+            gm = gm_func(*self.xy) # calc_gm from App
+            print(f"running calc_gm on {self.xy} = {gm}")
+            lab = lab + f"(gm: {gm})"
+        return lab
 
 
 class App(tk.Frame):
-    def __init__(self, master=None, roixy_list=None, ref=None, si=None, sires=24):
+    def __init__(self, master=None, roixy_list=None, ref=None, si=None, gm_mask=None, sires=24):
         super().__init__(master)
         self.master = master
         self.master.title("MRSI Coord Placer")
 
         # INIT
-        self.fnames = {"t1": ref, "si": si, "gm": None}
+        self.fnames = {"t1": ref, "si": si, "gm": gm_mask}
         self.imgs = {"ax-": None, "ax0": None, "ax+": None, "si": None}
         self.i_curroi = tk.IntVar(self)
         self.coords = None  # [ROI('roi1',[x, y])...]
         # update later with integral of siarray
         self.siIntg = None
         self.scout = None  # holds scout resolution
+        self.gm_img = None
+        self.see_gm_mask = False
 
         # DIMS
         # TODO: these are for 7T MRSI. could be setting somewhere
@@ -117,6 +125,8 @@ class App(tk.Frame):
 
         # TODO: these could be top bar menu item?
         self.btnfrm = tk.Frame(highlightbackground="blue", highlightthickness=2)
+        self.maskbtn = tk.Button(self.btnfrm, text="mask", command=self.toggle_mask)
+        self.maskbtn.pack(side="left")
         self.loadbtn = tk.Button(self.btnfrm, text="load", command=self.load)
         self.loadbtn.pack(side="left")
         self.savebtn = tk.Button(self.btnfrm, text="save", command=self.save_spec)
@@ -160,28 +170,41 @@ class App(tk.Frame):
         )
         self.roiselect.pack(side=tk.TOP, expand=1)
 
+        # where to store info about current selection.
+        # maybe not needed?
+        #self.info_label = tk.Label(self, text="-info-")
+
         # layout
+        #self.info_label.pack(side=tk.TOP)
         self.canvas["ax+"].pack(side=tk.LEFT)
         self.canvas["ax0"].pack(side=tk.LEFT)
         self.canvas["ax-"].pack(side=tk.LEFT)
         self.canvas["si"].pack(side=tk.BOTTOM)
         self.canvas["spc"].get_tk_widget().pack(side=tk.LEFT)
 
+    def update_t1_canvas(self):
+        "reload anatomical image w/ or w/o GM mask applied"
+        if self.t1 is None:
+            ax = np.ones((self.pixdim[0], self.pixdim[1])) * 150
+            self.imgs["ax-"] = ImageTk.PhotoImage(image=Image.fromarray(ax))
+            self.imgs["ax0"] = ImageTk.PhotoImage(image=Image.fromarray(ax))
+            self.imgs["ax+"] = ImageTk.PhotoImage(image=Image.fromarray(ax))
+            return
+
+        center = self.pixdim[2] / 2
+        hlf = self.voxdim[2] / 2
+        img = self.t1
+        if self.gm_img is not None and self.see_gm_mask:
+            img = numpy.ma.masked_array(img, self.gm_img == 0, fill_value=np.min(img))
+        self.imgs["ax-"] = npimg(img[:, :, int(center - hlf)])
+        self.imgs["ax0"] = npimg(img[:, :, int(center)])
+        self.imgs["ax+"] = npimg(img[:, :, int(center + hlf)])
+
     def read_ni(self):
         """populate self.imgs dictionary with each loaded neuroimage"""
         if self.fnames["t1"]:
             self.t1 = np.rot90(nib.load(self.fnames["t1"]).dataobj)
             self.pixdim = self.t1.shape
-            center = self.pixdim[2] / 2
-            hlf = self.voxdim[2] / 2
-            self.imgs["ax-"] = npimg(self.t1[:, :, int(center - hlf)])
-            self.imgs["ax0"] = npimg(self.t1[:, :, int(center)])
-            self.imgs["ax+"] = npimg(self.t1[:, :, int(center + hlf)])
-        else:
-            ax = np.ones((self.pixdim[0], self.pixdim[1])) * 150
-            self.imgs["ax-"] = ImageTk.PhotoImage(image=Image.fromarray(ax))
-            self.imgs["ax0"] = ImageTk.PhotoImage(image=Image.fromarray(ax))
-            self.imgs["ax+"] = ImageTk.PhotoImage(image=Image.fromarray(ax))
         # self.img['sag'] =  ImageTk.PhotoImage(image=Image.fromarray(tmpax))
         # self.img['cor'] =  ImageTk.PhotoImage(image=Image.fromarray(tmpax))
 
@@ -200,6 +223,25 @@ class App(tk.Frame):
             ax = np.ones((self.pixdim[0], self.pixdim[1])) * 150
             self.siIntg = None
             self.imgs["si"] = ImageTk.PhotoImage(image=Image.fromarray(ax))
+
+        # read in gray matter mask
+        if self.fnames["gm"]:
+            self.gm_img = np.rot90(nib.load(self.fnames["gm"]).dataobj)
+            if self.pixdim != self.gm_img.shape:
+                raise Exception(f"GM mask {self.fnames['gm']} not same matrix size as T1 {self.fnames['t1']}")
+            # TODO: check is mask not actual values
+            # if not np.all(self.gm_img in [0,1]):
+
+    def calc_gm(self, x, y):
+        "sum gray matter mask at current si voxel (x,y = center)"
+        if self.gm_img is None:
+            return 0
+        x = x - self.voxdim[0]//2
+        y = x - self.voxdim[1]//2
+        z = self.pixdim[2]//2 - self.voxdim[2]//2
+        vol = self.gm_img[x:self.voxdim[0], y:self.voxdim[1], z:self.voxdim[0]]
+        print(f"gm: {x}:{self.voxdim[0]} {y} {z} = {vol}")
+        return np.sum(vol)
 
     def draw_images(self):
         """redraw all images"""
@@ -227,7 +269,8 @@ class App(tk.Frame):
             return
         # listbox curselection is (index, None)
         i = i[0]
-        title = self.coords[i].label(self.scout.res if self.scout else 216)
+        title = self.coords[i].label(self.scout.res if self.scout else 216,
+                                     self.calc_gm)
 
         # no way to change label? rm and add back
         # color is cleared with delete, need to restore
@@ -283,12 +326,18 @@ class App(tk.Frame):
         self.roiselect.selection_set(self.i_curroi.get())
         self.update_roi_label()
 
+    def toggle_mask(self):
+        self.see_gm_mask = not self.see_gm_mask
+        self.update_t1_canvas()
+        self.update()
+
     def load(self):
         """read imaging files"""
         if not self.fnames["t1"] or not self.fnames["si"]:
             print("WARNING: missing t1 or si. cannot load")
             return
         self.read_ni()
+        self.update_t1_canvas()
         self.update()
         self.scout = Scout(None, res=self.pixdim[0])  # 216
 
@@ -412,6 +461,10 @@ if __name__ == "__main__":
 
     root = tk.Tk()
     app = App(
-        master=root, roixy_list=pargs.rois, ref=pargs.ref_fname, si=pargs.si_fname, sires=pargs.sires
+        master=root, roixy_list=pargs.rois,
+        ref=pargs.ref_fname,
+        si=pargs.si_fname,
+        gm_mask=pargs.gm_file,
+        sires=pargs.sires,
     )
     app.mainloop()
