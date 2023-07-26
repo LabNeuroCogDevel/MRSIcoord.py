@@ -63,7 +63,7 @@ class ROI:
         "what to show for this roi. sid3 coord and optionally gm mask count"
         pos = self.sid3(res_edge)
         lab = f"{self.roi} {pos[0]} {pos[1]}"
-        gm = gm_func(self.xy[0], self.xy[1]) # calc_gm from App
+        gm = gm_func(self.xy[1], self.xy[0]) # calc_gm from App
         if gm is not None:
             lab = lab + f" (gm:{gm})"
             #print(f"running calc_gm on {self.xy} = {gm}")
