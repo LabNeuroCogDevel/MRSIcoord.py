@@ -71,7 +71,7 @@ class ROI:
 
 
 class App(tk.Frame):
-    def __init__(self, master=None, roixy_list=None, ref=None, si=None, gm_mask=None, sires=24):
+    def __init__(self, master=None, roixy_list=None, ref=None, si=None, gm_mask=None, sires=24, outdir="out"):
         super().__init__(master)
         self.master = master
         self.master.title("MRSI Coord Placer")
@@ -86,6 +86,7 @@ class App(tk.Frame):
         self.scout = None  # holds scout resolution
         self.gm_img = None
         self.see_gm_mask = False
+        self.outdir = outdir
 
         # DIMS
         # TODO: these are for 7T MRSI. could be setting somewhere
@@ -350,10 +351,10 @@ class App(tk.Frame):
         self.update()
         self.scout = Scout(None, res=self.pixdim[0])  # 216
 
-    def save_spec(self, outdir="out"):
+    def save_spec(self):
         "write positioned coordinates recon spectrum.xx.yy files"
         pos = np.array([c.sid3(self.scout.res) for c in self.coords])
-        (specs, fnames) = self.siarray.ReconCoordinates3(self.scout, pos, outdir)
+        (specs, fnames) = self.siarray.ReconCoordinates3(self.scout, pos, self.outdir)
         print(specs)
         lcmodel.run_lcmodel(fnames)
 
