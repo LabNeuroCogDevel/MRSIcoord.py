@@ -2,7 +2,9 @@
 
 test: out/test_results.txt
 
-depends:
+.venv:
+	virtualenv .venv/
+	source .venv/bin/activate && \
 	pip install -r requirements.txt
 
 out/test_results.txt: test/data/11743_20190802_kspace.1.1 test/data/matlab/kspace.1.1 $(wildcard test/*py) lcmodel/lcmodel | out
@@ -21,7 +23,8 @@ gui_example:
 	./grid.py  -s test/data/siarray.1.1  -r test/data/rorig.nii  -i test/data/roi_pos.txt  --rois roi4 roi6 --gm_mask test/data/gm_sum.nii.gz
 
 test/data/matlab/kspace.1.1: test/genrate_mat.m
-	matlab -nosplash -nodesktop -r "try;addpath('test'); genrate_mat(); catch e; disp(e); end; quit;"
+	which matlab && \
+		matlab -nosplash -nodesktop -r "try;addpath('test'); genrate_mat(); catch e; disp(e); end; quit;" || :
 
 ## Standalone programs
 
@@ -49,3 +52,4 @@ out:
 # not needed by track for provenance
 test/data/11743_20190802_kspace.1.1: /Volumes/Hera/Projects/7TBrainMech/subjs/11743_20190802/slice_PFC/MRSI_roi/raw//kspace.1.1
 	cp $< $@
+
