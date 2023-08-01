@@ -126,15 +126,28 @@ class App(tk.Frame):
         # print(f"moving {roi} {x},{y}: {self.coords[roi].xy}")
         self.update()
 
-    def create_widgets(self):
+    def create_menu(self):
+        "add file drop down at top of app"
+        menubar = tk.Menu(root)
+        filemenu = tk.Menu(menubar, tearoff=0)
+        filemenu.add_command(label="docs", command=self.goto_docs)
+        filemenu.add_command(label="load", command=self.load)
+        menubar.add_cascade(label="File", menu=filemenu)
+        self.master.config(menu=menubar)
 
+    def create_widgets(self):
+        """add buttons, specturm, canvas (axial images) and
+        map keys and mouse button pushes"""
         # TODO: these could be top bar menu item?
-        self.btnfrm = tk.Frame(highlightbackground="blue", highlightthickness=2)
+        # see create_menu
+        self.btnfrm = tk.Frame(highlightbackground="blue", highlightthickness=0)
         self.maskbtn = tk.Button(self.btnfrm, text="mask", command=self.toggle_mask)
         self.maskbtn.pack(side="left")
         self.loadbtn = tk.Button(self.btnfrm, text="load", command=self.load)
         self.loadbtn.pack(side="left")
         self.savebtn = tk.Button(self.btnfrm, text="save", command=self.save_spec)
+        self.savebtn.pack(side="left")
+        self.savebtn = tk.Button(self.btnfrm, text="docs", command=self.goto_docs)
         self.savebtn.pack(side="left")
 
         fig = Figure(figsize=(2, 1))
@@ -155,6 +168,7 @@ class App(tk.Frame):
             return lambda e: self.img_click(k, e)
 
         # special keys only on main axial
+        self.canvas["ax0"].bind("m", lambda e: self.toggle_mask())
         self.canvas["ax0"].bind("<Return>", lambda e: self.inc_roi_selected())
         self.canvas["ax0"].bind("<Up>", lambda e: self.move_roi(y=-1))
         self.canvas["ax0"].bind("<Down>", lambda e: self.move_roi(y=1))
@@ -338,6 +352,7 @@ class App(tk.Frame):
 
     def toggle_mask(self):
         self.see_gm_mask = not self.see_gm_mask
+        self.maskbtn.config(relief="sunken" if self.see_gm_mask else "raised")
         self.update_t1_canvas()
         self.update()
 
@@ -357,6 +372,12 @@ class App(tk.Frame):
         (specs, fnames) = self.siarray.ReconCoordinates3(self.scout, pos, self.outdir)
         print(specs)
         lcmodel.run_lcmodel(fnames)
+
+    def goto_docs(self):
+        "open up help window"
+        import webbrowser
+        webbrowser.open("https://github.com/LabNeuroCogDevel/MRSIcoord.py#notes")
+        return
 
     def set_coords(self, roixy_list=None):
         if not roixy_list:

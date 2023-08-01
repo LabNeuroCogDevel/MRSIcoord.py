@@ -33,7 +33,9 @@ This will ideally provide a graphical interface to guide placing coordinates and
    * Defaults assume an 216x216 1mm T1w/anatomical resolution and 9x9x10mm MRSI slice
    * basis function specific to MRRC 7T (PFC and Hc slices) ./lcmodel/basis-sets/gamma_7TJref_te34_297mhz_no2HG_1.basis
    * need to compile lcmodel (https://github.com/schorschinho/LCModel) for your system and put the binary in the lcmodel folder as ~lcmodel/lcmodel~. there is a Makefile rule for this
-   * "~sid3~" coordinate/matrix order convention is inherited from MRRC: COL, ROW? (fortran column-major)
+   * "~sid3~" coordinate/matrix order convention is inherited from MRRC used for kspace+lcmodel: COL, ROW? (fortran column-major)
+     * ~--roi_initial roi.txt~ is like (label, x, y); sid is like ~(y, 216-x)~
+     * output directories like ~specturm.yy.xx~ are labeled with sid3 coordinates
    * ~siarray.1.1~ is from VB/VD MRI raw Siemens 'twix' ~.dat~. See [[https://pypi.org/project/pyMapVBVD/][pyMapVBVD]] or original [[https://github.com/CIC-methods/FID-A/blob/master/inputOutput/mapVBVD/README.md][matlab]]. Not created here.
 
 * Standalone python scripts
