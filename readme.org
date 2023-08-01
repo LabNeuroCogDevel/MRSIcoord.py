@@ -1,12 +1,18 @@
 * MRSI ROI selection
-This will ideally provide a graphical interface to guide placing coordinates and extracting MR spectrum.
+This will ideally provide a graphical interface to guide placing coordinates and extracting MR spectrum -- a python port of the slow-to-load, hard-to-hack, and unusable-over-X11Forwarding matlab version in [[matlab/]].
 
 [[file:imgs/py_screenshot.png]]
+
+```bash
+ ./grid.py \
+     -s test/data/siarray.1.1  -r test/data/rorig.nii --gm_mask test/data/gm_sum.nii.gz \
+     -i test/data/roi_pos.txt  --rois roi4 roi6 
+```
 
 ** Inputs
   * ~siarray.1.1~ - spectroscipy data. 1024 complex (1024 real, 1024 imaginary) points.
   * ~rorig.nii~ - structural MR registered to scout position
-  * ~gm_sum.nii~ - binary mask for if voxel is gm. sum of id Freesurfer gray matter regions.
+  * ~gm_sum.nii~ - binary mask for if voxel is gm. sum of id Freesurfer gray matter regions, also coregistered to the scout
   * ~coords.txt~ - initial guess at ROI positions (from mni atlas warp, center of mass). tab delim. w/columns: roilabel,x,y
 
 ** Output
@@ -24,8 +30,11 @@ This will ideally provide a graphical interface to guide placing coordinates and
    * run ~lcmodel~. (see  ~make lcmodel/lcmodel~)
   
 **  Notes
-   * basis function specific to MRRC 7T (PFC and Hc slices)
+   * Defaults assume an 216x216 1mm T1w/anatomical resolution and 9x9x10mm MRSI slice
+   * basis function specific to MRRC 7T (PFC and Hc slices) ./lcmodel/basis-sets/gamma_7TJref_te34_297mhz_no2HG_1.basis
    * need to compile lcmodel (https://github.com/schorschinho/LCModel) for your system and put the binary in the lcmodel folder as ~lcmodel/lcmodel~. there is a Makefile rule for this
+   * "~sid3~" coordinate/matrix order convention is inherited from MRRC: COL, ROW? (fortran column-major)
+   * ~siarray.1.1~ is from VB/VD MRI raw Siemens 'twix' ~.dat~. See [[https://pypi.org/project/pyMapVBVD/][pyMapVBVD]] or original [[https://github.com/CIC-methods/FID-A/blob/master/inputOutput/mapVBVD/README.md][matlab]]. Not created here.
 
 * Standalone python scripts
 see Makefile for examples in use
@@ -45,11 +54,31 @@ see Makefile for examples in use
 
 * Porting From Matlab
 
+** SID3 coordinate/matrix order
+
+  TODO:
+  * python saves coord and sid_coord files (need to replace LNCD  pipeline)
+
+#+begin_src bash
+# converting sid3 spectrum.xx.yy filename to match afni's center of mass warped rois '3dCM -local_ijk'
+sid3(){ awk '{print 216-$3+1 "\t" 216-$2+1}' "$@"; }
+
+roi_slice_ijk(){
+  # incomplete summary of /Volumes/Hera/Projects/7TBrainMech/scripts/mri/MRSI_roi/000_setupdirs.bash
+  # (1) warp mni atlas roi to slice space. (2) keep only center slice (match MRSI acq). (3) get center of rois
+  # roi centers used as starting point for gui placement
+  applywarp -o $outimg -i $mni_atlas -r $pfc_ref -w $mni_to_t1 --postmat=$t1_to_pfc --interp=nn
+  3dcalc -a "$outimg" -expr "equals(k,$slice_num_0)*a" -prefix middle_slice.nii.gz -overwrite
+  3dresample -prefix $res_img -inset middle_slice.nii.gz -master rorig.nii.gz
+  3dCM -local_ijk -all_rois $res_img | egrep '^[0-9]|#ROI'|paste - - |cut -f2-4 -d" "
+}
+#+end_src
+
 ** Read/Write isn't lossless?
 
 After IFFT, matlab code saves to ~kspace.1.1~.
 Reading this file back in and comparing to itself we can see lossy-ness around 10^{-3}.
-The figure max color is 10^{-5}.  Plot shows siarray (python) IFFT against itself (matlab) fwrite exported version. The same difference is seen comparing fwrite output with matlab's IFFT.
+The figure max color is 10^{-5}.  Plot shows siarray (python) IFFT against itself (matlab fwrite exported version). The same difference is seen comparing fwrite output with matlab's IFFT.
 
    #+BEGIN_SRC python :session :export both :file imgs/lossy-kspace.png
      import matplotlib.pyplot as plt
@@ -86,15 +115,38 @@ find /Volumes/Hera/Projects/7TBrainMech/subjs/11743_20190802/slice_PFC/MRSI_roi/
 #+END_SRC
 
 * Testing MATLAB
-
+**  spectrum lossy read/write
+Same ~gen_spectrum~ is off by at most ~.0023~ on a value of ~5422.2~
 #+BEGIN_SRC MATLAB
 si='/Volumes/Hera/Projects/7TBrainMech/subjs/10129_20180917/slice_PFC/MRSI_roi/raw/siarray.1.1'
 gen_spectrum(si, 216, [112, 104], '/tmp')
 a=fread(fopen('/Volumes/Hera/Projects/7TBrainMech/subjs/10129_20180917/slice_PFC/MRSI_roi/raw/spectrum.112.104'),'float')
 b=fread(fopen('/tmp/spectrum_112.104'),'float');
+
+% exactly correlated
 corr(a,b) % 1.0000
+
+% but not identical (off by .0229 on value of ~5000)
 [v,i] = max(abs(a-b)); v, a(i), b(i),
 %   0.0229
 %   5.4422e+03
 %   5.4421e+03
 #+END_SRC
+
+** Positions
+#+BEGIN_SRC MATLAB
+% ./grid.py  -s test/data/siarray.1.1  -r test/data/rorig.nii  -i test/data/roi_pos.txt  --rois roi4 roi6
+cd matlab
+coord_mover('test', 'subjcoords', '../test/data/pos_z.txt', 'brain', '../test/data/rorig.nii')
+fid = fopen('../test/data/WF/spectrum.78.66'); ml7866 = fread(fid,'single');
+fid = fopen('../out/spectrum.78.66'); py7866 = fread(fid,'single');
+hist(ml7866 - py7866)
+max(abs(ml7866 - py7866))
+%   9.3126e-04
+mean(abs(ml7866 - py7866))
+%   4.0350e-05
+[std(py7866), max(py7866)]
+%   1.0e+03 * 0.2648    1.6928
+#+END_SRC
+
+[[file:imgs/mrsicoord_placement_ml_vs_py.png]]

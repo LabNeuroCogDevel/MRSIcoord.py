@@ -1,7 +1,24 @@
+"""
+Port of MRRC's sid3 and SVR1HFinal (matlab)
+
+rhea:/opt/ni_tools/matlab_toolboxes/MRRC/
+"""
 import numpy as np
 import numpy.typing as npt
 from numpy import imag, real, zeros
 from numpy.fft import fftshift, ifft2
+import os
+
+
+# see DisplaySIImage.m,  AdjustSIImage.m, ReadSliderText2.m
+def adjust(img, brightness, contrast, gamma=1):
+    """[a,b] to [c,d] with gamma. like imadjust in matlab"""
+    a = np.min(img)
+    b = np.min(img)
+    c = brightness
+    d = (1.0-c)*contrast
+    # imadjust
+    return (((img - a) / (b - a)) ** gamma) * (d - c) + c
 
 
 class Offsets:
@@ -103,7 +120,8 @@ class SIArray:
         self.data = SI
 
     def integrateSI(self, s, e=None):
-        """sum from start to end"""
+        """sum from start to end. sid3:IntegrateSI.m"""
+
         if not e:
             e = self.data.shape[0]
         return np.sum(self.data[s:e, :], 0).reshape(self.res)
@@ -268,7 +286,7 @@ class SIArray:
         """
         generate spectrum from a given rorig coordinate
         @param pos - row, col postions to generate spectrum
-        @return spectrums - n_pos x self.pts*2 array of spectrums
+        @return (spectrums,files) - n_pos x self.pts*2 array of spectrums and output filenames
         >>> pos = np.array([[130, 99], [121, 94], [113, 89]])
         """
 
@@ -281,6 +299,7 @@ class SIArray:
         # do the reconstruction
         # convert the data matrix to appropriate formt
         spectrums = zeros((numrecon, self.pts * 2), dtype="float64")
+        filenames = [None] * numrecon
         for m in np.arange(numrecon):
             spectrum = self.spectrum(pospp[m, 0], pospp[m, 1])
             spectrums[m, :] = spectrum
@@ -288,11 +307,12 @@ class SIArray:
             if writedir:
                 row = pos[m, 0]
                 col = pos[m, 1]
-                filename = "%s/%s.%d.%d" % (writedir, specprefix, row, col)
-                with open(filename, "wb") as f:
+                filenames[m] = "%s/%s.%d.%d" % (writedir, specprefix, row, col)
+                os.makedirs(writedir, exist_ok=True)
+                with open(filenames[m], "wb") as f:
                     spectrum.astype("<f4").tofile(f)
 
-        return spectrums
+        return (spectrums,filenames)
 
 
 def ignored_regencor_scoutarray2(scout: Scout, rotm):

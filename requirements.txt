@@ -5,3 +5,4 @@ pillow
 nibabel
 scipy
 pytest
+docopt

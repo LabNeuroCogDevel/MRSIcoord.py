@@ -1,3 +1,4 @@
+import os.path
 import numpy as np
 import pytest
 from scipy.io import loadmat
@@ -5,6 +6,16 @@ from scipy.io import loadmat
 import lcmodel
 from siarray import Scout, SIArray
 
+
+SIARRAY="test/data/siarray.1.1"
+MATLAB_KSPACE="test/data/matlab/kspace.1.1"
+
+@pytest.fixture
+def ml_kspace(autouse=True):
+    if not os.path.isfile(MATLAB_KSPACE):
+        pytest.skip(f'missing matlab output file for testing. see make "{MATLAB_KSPACE}"')
+    kspace = SIArray(MATLAB_KSPACE)
+    return(SI)
 
 def belowthres(x, y, thres=10**-10):
     return abs(x - y).max() < thres
@@ -21,14 +32,14 @@ def test_read_scout():
 
 
 def test_read_si():
-    SI = SIArray("test/data/siarray.1.1")
     # see generate_mat.m
+    SI = SIArray(SIARRAY)
     ml_si = loadmat("test/data/matlab/si.mat")["SI"]
     assert (ml_si == SI.data.astype("double")).all()
 
 
 def test_kspace():
-    SI = SIArray("test/data/siarray.1.1")
+    SI = SIArray(SIARRAY)
     SI.IFFTData()
     # see generate_mat.m
     ml_k = loadmat("test/data/matlab/kspace.mat")["kspace"]
@@ -46,7 +57,7 @@ def test_retpos_3():
 
 
 def test_shiftmap():
-    SI = SIArray("test/data/siarray.1.1")
+    SI = SIArray(SIARRAY)
     SI.IFFTData()
 
     shiftmat = SI.ShiftMap(vertshift=1.49464, horzshift=-1.60098)
@@ -55,26 +66,25 @@ def test_shiftmap():
     assert belowthres(ml_sm, shiftmat)
 
 
-def test_littleindian(tmpdir):
-    SI = SIArray("test/data/siarray.1.1")
+def test_littleindian(tmpdir, ml_kspace):
+    SI = SIArray(SIARRAY)
     SI.IFFTData()
     SI.savekspace(tmpdir.join("temp_kspace.1.1"), reload=True)
-    with open("test/data/matlab/kspace.1.1", "r") as f:
-        mlk = np.fromfile(f, "<4f").reshape(SI.rows, SI.cols, SI.pts * 2)
+
+    mlk=ml_kspace.reshape(SI.rows, SI.cols, SI.pts * 2)
     assert belowthres(SI.kspace, mlk, 10**-2)
     assert belowthres(SI.kspace, mlk, 10**-6)
 
 
-def test_spatialtransform():
-    SI = SIArray("test/data/siarray.1.1")
+def test_spatialtransform(ml_kspace):
+    SI = SIArray(SIARRAY)
     st = SI.SpatialTransform2D(vertshift=1.49464, horzshift=-1.60098)
     # see generate_mat.m
     ml_st = loadmat("test/data/matlab/spatialtransform2d.mat")["SI"]
     assert belowthres(ml_st, st, 10**-2)  # PROBLEM?!
 
     # use same input as matlab
-    with open("test/data/matlab/kspace.1.1", "r") as f:
-        kspace = np.fromfile(f, "<4f")
+    kspace = ml_kspace
     SI.kspace = kspace.reshape(24, 24, 1024 * 2)
     readk_st = SI.SpatialTransform2D(vertshift=1.49464, horzshift=-1.60098)
     assert belowthres(readk_st, ml_st)  # FIX?
@@ -82,22 +92,21 @@ def test_spatialtransform():
 
 def test_posshift():
     scout = Scout("test/data/mprage_middle.mat")
-    SI = SIArray("test/data/siarray.1.1")
+    SI = SIArray(SIARRAY)
     pos = np.array([[130, 99], [121, 94], [113, 89]])
     pospp = SI.pos_shift(scout, pos)
     ml_pp = loadmat("test/data/matlab/pospp.mat")["poslpp"]
     assert belowthres(pospp, ml_pp)
 
 
-def test_spectrum():
+def test_spectrum(ml_kspace):
     pos = np.array([[130, 99], [121, 94], [113, 89]])
     scout = Scout("test/data/mprage_middle.mat")
-    SI = SIArray("test/data/siarray.1.1")
+    SI = SIArray(SIARRAY)
     # use the same kspace data
-    with open("test/data/matlab/kspace.1.1", "r") as f:
-        SI.kspace = np.fromfile(f, "<4f")
+    SI.kspace = ml_kspace
 
-    spectrums = SI.ReconCoordinates3(scout, pos)
+    (spectrums, files) = SI.ReconCoordinates3(scout, pos)
     ml_s3 = loadmat("test/data/matlab/spectrum_113.89")["spectrum"]
     assert belowthres(spectrums[2, :], ml_s3)
 
@@ -105,11 +114,11 @@ def test_spectrum():
 def test_spectrum_save(tmpdir):
     pos = np.array([[130, 99], [121, 94], [113, 89]])
     scout = Scout("test/data/mprage_middle.mat")
-    SI = SIArray("test/data/siarray.1.1")
+    SI = SIArray(SIARRAY)
     SI.IFFTData()
     SI.savekspace(tmpdir.join("temp_kspace.1.1"), reload=True)
 
-    spectrums = SI.ReconCoordinates3(scout, pos)
+    (spectrums, files) = SI.ReconCoordinates3(scout, pos)
     ml_s3 = loadmat("test/data/matlab/spectrum_113.89")["spectrum"]
     assert belowthres(spectrums[2, :], ml_s3, 10**-6)
 
