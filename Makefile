@@ -19,18 +19,22 @@ gui_example:
 
 # example mkspectrum call
 # also see test/data/pos.txt
-out/spectrum.112.88.py: test/data/siarray.1.1
-	@mkdir -p out
-	./mkspectrum test/data/siarray.1.1 216 --pos 112 88 out/
-	mv out/spectrum.112.88 $@
+# x,y 116,124 => 216+1- => 101,93 => sid3: 93,101
+# L Caud in /Volumes/Hera/Projects/7TBrainMech/subjs//11743_20190802/slice_PFC/MRSI_roi/13MP20200207/LT
+# diff -y <(datamash -t, transpose < out/spectrum.93.101.dir/spreadsheet.csv ) <(datamash -t, transpose < /Volumes/Hera/Projects/7TBrainMech/subjs//11743_20190802/slice_PFC/MRSI_roi/LCModel/v2idxfix/spectrum.93.101.dir/spreadsheet.csv )
 
-out/spectrum.112.88.py.dir/: out/spectrum.112.88.py
+out/spectrum.93.101.py: test/data/siarray.1.1
+	@mkdir -p out
+	./mkspectrum test/data/siarray.1.1 216 --pos 93 101 out/
+	mv out/spectrum.93.101 $@
+
+out/spectrum.93.101.py.dir/: out/spectrum.93.101.py
 	./lcmodel.py $<
 
 ## MATLAB (octave) vesion
-out/spectrum.112.88.ml: test/data/siarray.1.1
-	octave --eval "addpath('$$PWD/matlab'); gen_spectrum('test/data/siarray.1.1', 216, [112 88],'out/')"
-	mv out/spectrum.112.88 $@
+out/spectrum.93.101.ml: test/data/siarray.1.1
+	octave --eval "addpath('$$PWD/matlab'); gen_spectrum('test/data/siarray.1.1', 216, [93 101],'out/')"
+	mv out/spectrum.93.101 $@
 
-out/spectrum.112.88.ml.dir/: out/spectrum.112.88.ml
-	octave --eval "addpath('$$PWD/matlab/lcmodel/'); cd out/; lcmodel_spec('spectrum.112.88.ml')"
+out/spectrum.93.101.ml.dir/: out/spectrum.93.101.ml
+	octave --eval "addpath('$$PWD/matlab/lcmodel/'); cd out/; lcmodel_spec('spectrum.93.101.ml')"
