@@ -14,6 +14,7 @@ This will ideally provide a graphical interface to guide placing coordinates and
   * ~rorig.nii~ - structural MR registered to scout position
   * ~gm_sum.nii~ - binary mask for if voxel is gm. sum of id Freesurfer gray matter regions, also coregistered to the scout
   * ~coords.txt~ - initial guess at ROI positions (from mni atlas warp, center of mass). tab delim. w/columns: roilabel,x,y
+    [[file:./imgs/orientation.svg]]
 
 ** Output
   * ~spectrum.xx.yy~ - reconstructed spectrum at coordinate xx, yy. One file for each ROI.
