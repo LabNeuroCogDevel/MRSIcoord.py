@@ -3,11 +3,11 @@ This will ideally provide a graphical interface to guide placing coordinates and
 
 [[file:imgs/py_screenshot.png]]
 
-```bash
+#+begin_src bash
  ./grid.py \
      -s test/data/siarray.1.1  -r test/data/rorig.nii --gm_mask test/data/gm_sum.nii.gz \
      -i test/data/roi_pos.txt  --rois roi4 roi6 
-```
+#+end_src
 
 ** Inputs
   * ~siarray.1.1~ - spectroscipy data. 1024 complex (1024 real, 1024 imaginary) points.
