@@ -37,7 +37,9 @@ function [f, coords] = coord_mover(ld8, varargin)
 % EXAMPLE MNI COORDS
 %  [f, orig_coord] = coord_mover('','subjcoords','mkcoords/mni_ijk.txt','brain','mkcoords/slice_mni.nii');
 
+  % 20240214: this is wrong?! hopefully it's not needed
   mni_label_file='./mni_coords_MPOR_20190425_labeled.txt';
+  mni_label_file='roi_locations/labels_13MP20200207.txt';
 
   NIFTIDIR='/Volumes/Hera/Projects/7TBrainMech/scripts/mri/MRSI/Codes_yj/NIfTI';
   % need nii reader in path
@@ -172,7 +174,8 @@ function [f, coords] = coord_mover(ld8, varargin)
       %  2	60  90
       if isempty(p.Results.subjcoords)
          % TODO: find slice number might not be 16
-         coords_file=sprintf('%s/slice_roi_MPOR20190425_CM_%s_16.txt',rdir,ld8);
+         % 20240214: was MPOR20190425 now 13MP20200207
+         coords_file=sprintf('%s/slice_roi_13MP20200207_CM_%s_16.txt',rdir,ld8);
       else
          coords_file = p.Results.subjcoords,
       end
