@@ -19,6 +19,7 @@ parseargs(){
   [ $# -eq 0 ] && usage && exit 0
 
   declare -g scout roi template anat aseg outdir
+  template=""
   # break apart -h and any other single switch option, check '--switch value' pairs exist
   #PARSED=$(getopt\
   #        --options=s:r:f:t:o:h \
@@ -36,8 +37,8 @@ parseargs(){
           *) echo "unknown option '$1', see $0 -h"; exit 1;;
       esac
   done
-  anat="$fsdir/brain.mgz"
-  aseg="$fsdir/aseg.mgz"
+  anat="$fsdir/mri/brain.mgz"
+  aseg="$fsdir/mri/aseg.mgz"
 
   roi="${roi:-}"
   for var in scout fsdir anat aseg; do
@@ -47,7 +48,7 @@ parseargs(){
   done
   [ -n "${roi}" ] && [ ! -r "${roi}" ] &&
 
-  [ -n "$template" -a ! -r "$tempalate" ] &&
+  [ -n "$template" ] && [ ! -r "$template" ] &&
       echo "template '$template' does not exist!" && template=""
   if [ -z "$template" ]; then
       echo "WARNING: no/bad ROI template given. try to download MNI 1mm 09c. Will need template flow."
@@ -59,14 +60,15 @@ parseargs(){
       #${TEMPLATEFLOW_HOME:-$HOME/.cache/templateflow}/tpl-MNI152NLin2009cAsym/tpl-MNI152NLin2009cAsym_res-01-desc-brain_T1w.nii.gz
   fi
   [ -z "$outdir" ] && outdir=$(mktemp -d "${TMP:-/tmp}/MRSIXXXX") && echo "# saving to $outdir"
+  return 0
 }
 init_output() {
-  declare -g scout roi template anat aseg
+  declare -g scout roi template anat aseg outdir
   mkdir -p "$outdir"
   test -r "$outdir/anat.nii.gz" ||
     mri_convert     "$anat"         "$_"
   test -r "$outdir/gm_mask.nii.gz" ||
-    mri_binarize -i "$aseg" --gm -o "$_"
+    mri_binarize --i "$aseg" --gm --o "$_"
   test -e "$outdir/roi_atlas.nii.gz" ||
     ln -s "$(readlink -f "$roi")"   "$_"
   test -e "$outdir/scout.nii.gz"||
@@ -75,23 +77,29 @@ init_output() {
     ln -s "$(readlink -f "$template")" "$_"
 }
 mrsi_warps(){
-  output="${1:?need MRSI align outputdir as first arg}"
-  cd "$output"
-  # would use 'bet' but dont want to require FSL
-  antsBrainExtraction.sh -d 3 -a scout.nii.gz -e brainWithSkullTemplate.nii.gz -o scout_bet.nii.gz
+  outdir="${1:?need MRSI align outputdir as first arg}"
+  cd "$outdir"
+  #antsBrainExtraction.sh -d 3 -a scout.nii.gz -e brainWithSkullTemplate.nii.gz -o scout_bet.nii.gz
+  # would use 'bet' but dont want to require FSL. AFNI used for 3dUndump and 3dCM already
+  test -r scout_bet.nii.gz ||
+    3dSkullStrip -input scout.nii.gz -prefix "$_"
 
 
   # bring anat to scout (affine only)
   test -r anat2scout_0GenericAffine.mat ||
-    antsRegistrationSyN.sh -d 3 -f scout_bet.nii.gz -m anat.nii.gz -t a -o anat2scout
+    antsRegistrationSyN.sh -d 3 -f scout_bet.nii.gz -m anat.nii.gz -t r -o anat2scout_
+      # NB. use 'r' rigid instead of 'a' (rigid+affine). don't want any scaling
 
+  # have  anat2scout_Warp.nii.gz but want higher resolution
+  # shellcheck disable=SC2046  # want 3 args from 3dinfo to be treated as 3 inputs
+  3dresample -dxyz $(3dinfo -ad3 anat.nii.gz) -inset scout.nii.gz -prefix scout_upsample.nii.gz
   antsApplyTransforms  \
     --default-value 0 \
     --input anat.nii.gz \
     --input-image-type 3 \
     --interpolation Linear \
     --output anat_in_scout.nii.gz \
-    --reference-image scout.nii.gz \
+    --reference-image scout_upsample.nii.gz \
     --transform anat2scout_0GenericAffine.mat
 
   ## Bring ROI to scout (2step syn + affine)
@@ -111,9 +119,10 @@ mrsi_warps(){
 }
 
 _MRSI_align() {
-  declare -g output
+  declare -g outdir
   parseargs "$@"
-  mrsi_warps "$output"
+  init_output # uses globals set by parseargs
+  mrsi_warps "$outdir"
 
 }
 
