@@ -193,13 +193,13 @@ class LCModel:
         return control_str
 
 
-def run_lcmodel(args):
+def run_lcmodel(spectrum_files):
     lcmodel_path = os.path.join(os.path.dirname(__file__), "lcmodel/lcmodel")
     basis_path = os.path.join(
         os.path.dirname(lcmodel_path),
         "basis-sets/gamma_7TJref_te34_297mhz_no2HG_1.basis",
     )
-    for spec_file in args[1:]:  # "test/data/spectrum.112.88"
+    for spec_file in spectrum_files:  # "test/data/spectrum.112.88"
         print(f"running lcmodel for: '{spec_file}'")
         lcm = LCModel(spec_file, lcmodel_path, basis=basis_path)
         lcm.run()
@@ -208,4 +208,4 @@ def run_lcmodel(args):
 if __name__ == "__main__":
     import sys
 
-    run_lcmodel(sys.argv)
+    run_lcmodel(sys.argv[1:])
