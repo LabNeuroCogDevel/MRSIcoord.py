@@ -3,32 +3,41 @@ This will ideally provide a graphical interface to guide placing coordinates and
 
 [[file:imgs/py_screenshot.png]]
 
-#+begin_src bash
- ./grid.py \
+** Usage
+#+begin_src bash :eval never
+  ## SETUP. clone and get depends. only need to run once
+  # get MRSIcoord.py code
+  git clone https://github.com/LabNeuroCogDevel/MRSIcoord.py && cd MRSIcoord.py
+  # get any missing python libraries
+  pip install -r requirements.txt
+
+  ## run GUI with example input data
+  ./grid.py \
      -s test/data/siarray.1.1  -r test/data/rorig.nii --gm_mask test/data/gm_sum.nii.gz \
      -i test/data/roi_pos.txt  --rois roi4 roi6 
 #+end_src
 
 ** Inputs
-  * ~siarray.1.1~ - spectroscipy data. 1024 complex (1024 real, 1024 imaginary) points.
-  * ~rorig.nii~ - structural MR registered to scout position
-  * ~gm_sum.nii~ - binary mask for if voxel is gm. sum of id Freesurfer gray matter regions, also coregistered to the scout
-  * ~coords.txt~ - initial guess at ROI positions (from mni atlas warp, center of mass). tab delim. w/columns: roilabel,x,y
+  | ~-s siarray.1.1~       | spectroscipy data. 1024 complex (1024 real, 1024 imaginary) points.                                          |
+  | ~-r rorig.nii~         | structural MR registered to scout position                                                                   |
+  | ~--gm_mask gm_sum.nii~ | binary mask for if voxel is gm. sum of id Freesurfer gray matter regions, also coregistered to the scout     |
+  | [[file:test/data/roi_pos.txt][~-i coords.txt~]]        | initial guess at ROI positions (from mni atlas warp, center of mass). tab delim w/columns: roilabel, x, and y |
+
     [[file:./imgs/orientation.svg]]
 
 ** Output
-  * ~spectrum.xx.yy~ - reconstructed spectrum at coordinate xx, yy. One file for each ROI.
-  * ~spectrum.xx.yy.dir/spreedsheet.csv~ - lcmodel'ed metabolite concentrations
+  | ~spectrum.xx.yy~                     | reconstructed spectrum (2D FFT) at coordinate xx, yy. One file for each ROI. |
+  | ~spectrum.xx.yy.dir/spreedsheet.csv~ | lcmodel'ed metabolite concentrations                                |
 
 
 **  Pipeline
-   * read inputs
-   * place each ROI (get coordinates)
+   - read inputs
+   - place each ROI (get coordinates)
      * optimize for spectrum quality (e.g. far enough from skull)
      * greatest GM count
      * still classified as region of interest (anatomy)
-   * generate spectrum files
-   * run ~lcmodel~. (see  ~make lcmodel/lcmodel~)
+   - generate spectrum files
+   - run ~lcmodel~. (to create binary exe, see  ~make lcmodel/lcmodel~)
   
 **  Notes
    * Defaults assume an 216x216 1mm T1w/anatomical resolution and 9x9x10mm MRSI slice
