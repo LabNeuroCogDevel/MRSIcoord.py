@@ -281,7 +281,7 @@ class SIArray:
         return spectrum
 
     def ReconCoordinates3(
-        self, scout: Scout, pos, writedir=None, specprefix="spectrum"
+            self, scout: Scout, pos, writedir=None, specprefix:str|list ="spectrum"
     ):
         """
         generate spectrum from a given rorig coordinate
@@ -295,6 +295,12 @@ class SIArray:
         numrecon = pos.shape[0]
         pospp = self.pos_shift(scout, pos)
 
+        # original output is spectrum.col.row. but we might want variable roiname.col.row
+        if type(specprefix) is str:
+            specprefix = [specprefix] * numrecon
+        if len(specprefix) != numrecon:
+            raise Exception(f"input prefix list ({len(specprefix)}) does notmatch number of positions ({numrecon})")
+
         # load the fractional pixel shifts
         # do the reconstruction
         # convert the data matrix to appropriate formt
@@ -307,7 +313,7 @@ class SIArray:
             if writedir:
                 row = pos[m, 0]
                 col = pos[m, 1]
-                filenames[m] = "%s/%s.%d.%d" % (writedir, specprefix, row, col)
+                filenames[m] = "%s/%s.%d.%d" % (writedir, specprefix[m], row, col)
                 os.makedirs(writedir, exist_ok=True)
                 with open(filenames[m], "wb") as f:
                     spectrum.astype("<f4").tofile(f)
