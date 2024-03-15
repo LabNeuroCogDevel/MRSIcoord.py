@@ -41,6 +41,7 @@ class ROI:
     def __init__(self, label: str, xy):
         self.roi = label
         self.xy = xy[0:2]
+        self.gm = None
 
     def update(self, event):
         """update on coords on mouse click
@@ -59,14 +60,24 @@ class ROI:
         # [int(res_edge - p) for p in reverse(self.xy)]
         return (int(self.xy[1]), int(res_edge - self.xy[0]))
 
-    def label(self, res_edge, gm_func=lambda x, y: None):
+    def update_gm(self, gm_func=lambda x, y: None):
+        "Update gray matter based on position. Requires main App gm_img and voxdims"
+        self.gm = gm_func(self.xy[1], self.xy[0]) # calc_gm from App
+
+    def label(self, res_edge):
         "what to show for this roi. sid3 coord and optionally gm mask count"
         pos = self.sid3(res_edge)
         lab = f"{self.roi} {pos[0]} {pos[1]}"
-        gm = gm_func(self.xy[1], self.xy[0]) # calc_gm from App
-        if gm is not None:
-            lab = lab + f" (gm:{gm})"
+        if self.gm is not None:
+            lab = lab + f" (gm:{self.gm})"
             #print(f"running calc_gm on {self.xy} = {gm}")
+        return lab
+
+    def fname(self):
+        "roiname or roiname_gm-count"
+        lab = self.roi
+        if self.gm is not None:
+            lab = lab + f"_gm-{self.gm}"
         return lab
 
 
@@ -284,8 +295,7 @@ class App(tk.Frame):
 
     def update_roi_label(self):
         "set current roi label to include box position"
-        lb = self.roiselect
-        i = lb.curselection()
+        i = self.roiselect.curselection()
 
         # update might happen before listbox has any selection
         if not i:
@@ -293,11 +303,16 @@ class App(tk.Frame):
             return
         # listbox curselection is (index, None)
         i = i[0]
-        title = self.coords[i].label(self.scout.res if self.scout else 216,
-                                     self.calc_gm)
+        self.update_roi_label_at_i(i)
+
+    def update_roi_label_at_i(self, i):
+        "update label at index"
+        self.coords[i].update_gm(self.calc_gm)
+        title = self.coords[i].label(self.scout.res if self.scout else 216)
 
         # no way to change label? rm and add back
         # color is cleared with delete, need to restore
+        lb = self.roiselect
         lb.delete(i)
         lb.insert(i, title)
         lb.itemconfig(i, {"bg": self.hexcolors[i]})
@@ -307,8 +322,10 @@ class App(tk.Frame):
         # TODO: get pos from clicked loc
         if not self.scout:
             return
-        pos = np.array([self.coords[0].xy])
-        (spectrums, fnames) = self.siarray.ReconCoordinates3(self.scout, pos)
+        i = self.i_curroi.get()
+        pos = np.array([self.coords[i].xy])
+        roi = self.coords[i].roi
+        (spectrums, fnames) = self.siarray.ReconCoordinates3(self.scout, pos, specprefix="{roi}_temp")
         self.axes["spc"].clear()
         self.axes["spc"].plot(spectrums[0])
         self.canvas["spc"].draw()
@@ -365,12 +382,19 @@ class App(tk.Frame):
         self.update_t1_canvas()
         self.update()
         self.scout = Scout(None, res=self.pixdim[0])  # 216
+        # update all labels for init info (esp gm count)
+        for i in range(len(self.coords)):
+            self.update_roi_label_at_i(i)
 
     def save_spec(self):
         "write positioned coordinates recon spectrum.xx.yy files"
         pos = np.array([c.sid3(self.scout.res) for c in self.coords])
-        (specs, fnames) = self.siarray.ReconCoordinates3(self.scout, pos, self.outdir)
+        roi_names = [x.fname() for x in self.coords]
+        (specs, fnames) = self.siarray.ReconCoordinates3(self.scout, pos, self.outdir, specprefix=roi_names)
+        print("== have specs ==")
         print(specs)
+        print("== running lcmodel ==")
+        print(fnames)
         lcmodel.run_lcmodel(fnames)
 
     def goto_docs(self):
