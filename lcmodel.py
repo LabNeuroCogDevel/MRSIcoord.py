@@ -82,12 +82,18 @@ class LCModel:
         # updated by write_control used by lcmodel()
         self.control_fname = None
 
-    def run(self, outdir=None):
+    def run(self, outdir=None, redo=False):
         """
         create lcmodel temporary files and run
         """
         if not outdir:
             outdir = self.spec_file + ".dir"
+
+        output_sheet = os.path.join(outdir,'spreadsheet.csv')
+        if not redo and os.path.isfile(output_sheet):
+            print(f"already have '{output_sheet}'. use lcmodel.run(...,redo=True) in python to rerun")
+            return 0
+
         os.makedirs(outdir, exist_ok=True)
         pwd = os.getcwd()
         os.chdir(outdir)
@@ -102,7 +108,7 @@ class LCModel:
         if not os.access(self.lcmodel_path, os.X_OK) or not os.path.isfile(self.lcmodel_path):
             raise Exception(f"do not have valid lcmodel binary '{self.lcmodel_path}'")
 
-        cmd = f"{self.lcmodel_path} < {self.control_fname}"
+        cmd = f"{self.lcmodel_path} < {os.getcwd()}/{self.control_fname}"
         return subprocess.run(cmd, shell=True).returncode
         # print(cmd)
         # return os.system(cmd)
@@ -149,7 +155,7 @@ class LCModel:
         DELTAT = str(round(1 / self.RBW, 7)).replace("0.", ".")
 
         control_str = f""" $LCMODL
- TITLE= '{control_fname}' 
+ TITLE= '{os.getcwd()}/{control_fname}' 
  FILBAS= '{self.basis}'
  FILRAW='{self.csi_raw_fname}' 
  FILCOO='csi.coord' 
@@ -193,7 +199,7 @@ def run_lcmodel(args):
         os.path.dirname(lcmodel_path),
         "basis-sets/gamma_7TJref_te34_297mhz_no2HG_1.basis",
     )
-    for spec_file in args:  # "test/data/spectrum.112.88"
+    for spec_file in args[1:]:  # "test/data/spectrum.112.88"
         print(f"running lcmodel for: '{spec_file}'")
         lcm = LCModel(spec_file, lcmodel_path, basis=basis_path)
         lcm.run()
