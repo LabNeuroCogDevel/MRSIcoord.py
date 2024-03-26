@@ -3,6 +3,13 @@ This will ideally provide a graphical interface to guide placing coordinates and
 
 [[file:imgs/py_screenshot.png]]
 
+** Citation
+This and [[https://github.com/LabNeuroCogDevel/QPASA_slice-warp][QPASA slice warping]] used first in [[https://www.sciencedirect.com/science/article/pii/S0301008222001563][Perica et al, 2022]]
+
+#+begin_quote
+Regions of interest (ROIs) were defined in MNI-space using a custom ROI atlas, and included right and left dorsolateral prefrontal cortex (DLPFC), right and left anterior insula (AI), anterior cingulate cortex (ACC), and medial PFC (MPFC) (Fig. 1b). An automated nonlinear registration using FSL’s FNIRT was performed to map those ROIs into each subject’s native space. ROI centers were visually inspected and manually adjusted for each subject with in-house developed software in order to maximize spectral quality and gray matter content of the voxel. To ensure manual adjustment did not move ROI centers outside of the region of interest, the adjusted ROIs were registered back to standard space where their position was confirmed with the Eickhoff-Zielles maximum probability map of the Talairach-Tournoux atlas using AFNI’s whereami (Cox, 1996). The ROI coordinates were then used in the anatomically guided voxel-shifting reconstruction of MRSI data (Hetherington et al., 2007) to gather spectroscopic data over the ROI
+#+end_quote
+
 ** Usage
 #+begin_src bash :eval never
   ## SETUP. clone and get depends. only need to run once
@@ -18,10 +25,10 @@ This will ideally provide a graphical interface to guide placing coordinates and
 #+end_src
 
 ** Inputs
-  | ~-s siarray.1.1~       | spectroscipy data. 1024 complex (1024 real, 1024 imaginary) points.                                          |
-  | ~-r rorig.nii~         | structural MR registered to scout position                                                                   |
-  | ~--gm_mask gm_sum.nii~ | binary mask for if voxel is gm. sum of id Freesurfer gray matter regions, also coregistered to the scout     |
-  | [[file:test/data/roi_pos.txt][~-i coords.txt~]]        | initial guess at ROI positions (from mni atlas warp, center of mass). tab delim w/columns: roilabel, x, and y |
+  | ~-s siarray.1.1~       | spectroscipy data. 1024 complex (1024 real, 1024 imaginary) points.                                           |
+  | ~-r rorig.nii~         | structural MR registered to scout position                                                                    |
+  | ~--gm_mask gm_sum.nii~ | binary mask for if voxel is gm. sum of id Freesurfer gray matter regions, also coregistered to the scout      |
+  | -i [[file:test/data/roi_pos.txt][coords.txt]]      | initial guess at ROI positions (from mni atlas warp, center of mass). tab delim w/columns: roilabel, x, and y |
 
     [[file:./imgs/orientation.svg]]
 
