@@ -31,7 +31,9 @@ tk.Canvas.create_box = _create_box
 def npimg(x, minimum, maximum):
     # rescale so high valued niftis aren't too bright
     x = np.round((x - minimum) / (maximum - minimum) * 255)
-    print(f"rescaling {minimum} to {maximum}. now {np.mean(x)}")
+    print(
+        f"# rescaling mat {x.shape} {minimum}-{maximum} to 0-255. mean now {np.mean(x)}"
+    )
     return ImageTk.PhotoImage(image=Image.fromarray(x))
 
 
@@ -62,7 +64,7 @@ class ROI:
 
     def update_gm(self, gm_func=lambda x, y: None):
         "Update gray matter based on position. Requires main App gm_img and voxdims"
-        self.gm = gm_func(self.xy[1], self.xy[0]) # calc_gm from App
+        self.gm = gm_func(self.xy[1], self.xy[0])  # calc_gm from App
 
     def label(self, res_edge):
         "what to show for this roi. sid3 coord and optionally gm mask count"
@@ -70,7 +72,7 @@ class ROI:
         lab = f"{self.roi} {pos[0]} {pos[1]}"
         if self.gm is not None:
             lab = lab + f" (gm:{self.gm})"
-            #print(f"running calc_gm on {self.xy} = {gm}")
+            # print(f"running calc_gm on {self.xy} = {gm}")
         return lab
 
     def fname(self):
@@ -82,14 +84,30 @@ class ROI:
 
 
 class App(tk.Frame):
-    def __init__(self, master=None, roixy_list=None, ref=None, si=None, gm_mask=None, sires=24, outdir="out"):
+    def __init__(
+        self,
+        master=None,
+        roixy_list=None,
+        ref=None,
+        si=None,
+        gm_mask=None,
+        sires=24,
+        outdir="out",
+    ):
         super().__init__(master)
         self.master = master
         self.master.title("MRSI Coord Placer")
 
         # INIT
         self.fnames = {"t1": ref, "si": si, "gm": gm_mask}
-        self.imgs = {"ax-": None, "ax0": None, "ax+": None, "si": None}
+        self.imgs = {
+            "ax-": None,
+            "ax0": None,
+            "ax+": None,
+            "si": None,
+            "sag": None,
+            "cor": None,
+        }
         self.i_curroi = tk.IntVar(self)
         self.coords = None  # [ROI('roi1',[x, y])...]
         # update later with integral of siarray
@@ -149,6 +167,8 @@ class App(tk.Frame):
     def create_widgets(self):
         """add buttons, specturm, canvas (axial images) and
         map keys and mouse button pushes"""
+        self.top_frame = tk.Frame(master=self)
+
         # TODO: these could be top bar menu item?
         # see create_menu
         self.btnfrm = tk.Frame(highlightbackground="blue", highlightthickness=0)
@@ -167,11 +187,18 @@ class App(tk.Frame):
             "ax-": tk.Canvas(self, width=self.pixdim[0], height=self.pixdim[1]),
             "ax0": tk.Canvas(self, width=self.pixdim[0], height=self.pixdim[1]),
             "ax+": tk.Canvas(self, width=self.pixdim[0], height=self.pixdim[1]),
+            "sag": tk.Canvas(
+                self.top_frame, width=self.pixdim[1], height=self.pixdim[2]
+            ),
+            "cor": tk.Canvas(
+                self.top_frame, width=self.pixdim[0], height=self.pixdim[2]
+            ),
             "spc": FigureCanvasTkAgg(fig, self),
         }
         self.axes = {"spc": fig.add_subplot(111)}
 
         self.btnfrm.pack(side="top")
+        self.top_frame.pack(side="top")
 
         # if we just use an embeded bind lambda
         # only the last one created will be used for all
@@ -194,18 +221,20 @@ class App(tk.Frame):
                 c.bind("<Button-3>", lambda e: self.inc_roi_selected())
 
         # dropdown for roi selection
-        self.roiselect = tk.Listbox(self)
+        self.roiselect = tk.Listbox(self.top_frame)
         self.roiselect.bind(
             "<<ListboxSelect>>", lambda e: self.i_curroi.set(e.widget.curselection()[0])
         )
-        self.roiselect.pack(side=tk.TOP, expand=1)
+        self.roiselect.pack(side=tk.LEFT)
+        self.canvas["sag"].pack(side=tk.LEFT)
+        self.canvas["cor"].pack(side=tk.LEFT)
 
         # where to store info about current selection.
         # maybe not needed?
-        #self.info_label = tk.Label(self, text="-info-")
+        # self.info_label = tk.Label(self, text="-info-")
 
         # layout
-        #self.info_label.pack(side=tk.TOP)
+        # self.info_label.pack(side=tk.TOP)
         self.canvas["ax+"].pack(side=tk.LEFT)
         self.canvas["ax0"].pack(side=tk.LEFT)
         self.canvas["ax-"].pack(side=tk.LEFT)
@@ -215,19 +244,26 @@ class App(tk.Frame):
     def update_t1_canvas(self):
         "reload anatomical image w/ or w/o GM mask applied"
         if self.t1 is None:
-            ax = np.ones((self.pixdim[0], self.pixdim[1])) * 150
+            ax = np.ones((self.pixdim[0], self.pixdim[1])) * 150  # XxY
             self.imgs["ax-"] = ImageTk.PhotoImage(image=Image.fromarray(ax))
             self.imgs["ax0"] = ImageTk.PhotoImage(image=Image.fromarray(ax))
             self.imgs["ax+"] = ImageTk.PhotoImage(image=Image.fromarray(ax))
+
+            sag_ones = np.ones((self.pixdim[1], self.pixdim[2]))  # YxZ
+            self.imgs["sag"] = ImageTk.PhotoImage(image=Image.fromarray(sag_ones * 150))
+
+            cor_ones = np.ones((self.pixdim[0], self.pixdim[2]))  # XxZ
+            self.imgs["cor"] = ImageTk.PhotoImage(image=Image.fromarray(cor_ones * 150))
+
             return
 
         center = self.pixdim[2] / 2
         hlf = self.voxdim[2] / 2
 
-        (mint1val, maxt1val) = np.percentile(self.t1, [2,98])
+        (mint1val, maxt1val) = np.percentile(self.t1, [2, 98])
         if self.gm_img is not None and self.see_gm_mask:
-            #img = numpy.ma.masked_array(self.t1, self.gm_img < 1, fill_value=mint1val)
-            (mint1val, maxt1val) = (0,1)
+            # img = numpy.ma.masked_array(self.t1, self.gm_img < 1, fill_value=mint1val)
+            (mint1val, maxt1val) = (0, 1)
             img = self.gm_img
         else:
             img = np.copy(self.t1)
@@ -235,13 +271,19 @@ class App(tk.Frame):
         self.imgs["ax0"] = npimg(img[:, :, int(center)], mint1val, maxt1val)
         self.imgs["ax+"] = npimg(img[:, :, int(center + hlf)], mint1val, maxt1val)
 
+        sag_mat = img[:, self.pixdim[1] // 2, :]
+        print(f"# img {img.shape} sag_mat now shape: {sag_mat.shape}")
+        self.imgs["sag"] = npimg(np.rot90(sag_mat), mint1val, maxt1val)
+
+        cor_mat = img[self.pixdim[0] // 2, :, :]
+        print(f"# img {img.shape} now cor_mat shape: {sag_mat.shape}")
+        self.imgs["cor"] = npimg(np.rot90(cor_mat), mint1val, maxt1val)
+
     def read_ni(self):
         """populate self.imgs dictionary with each loaded neuroimage"""
         if self.fnames["t1"]:
             self.t1 = np.rot90(nib.load(self.fnames["t1"]).dataobj)
             self.pixdim = self.t1.shape
-        # self.img['sag'] =  ImageTk.PhotoImage(image=Image.fromarray(tmpax))
-        # self.img['cor'] =  ImageTk.PhotoImage(image=Image.fromarray(tmpax))
 
         if self.fnames["si"]:
             self.siarray = SIArray(self.fnames["si"])
@@ -263,7 +305,9 @@ class App(tk.Frame):
         if self.fnames["gm"]:
             self.gm_img = np.rot90(nib.load(self.fnames["gm"]).dataobj)
             if self.pixdim != self.gm_img.shape:
-                raise Exception(f"GM mask {self.fnames['gm']} not same matrix size as T1 {self.fnames['t1']}")
+                raise Exception(
+                    f"GM mask {self.fnames['gm']} not same matrix size as T1 {self.fnames['t1']}"
+                )
             # TODO: check is mask not actual values
             # if not np.all(self.gm_img in [0,1]):
 
@@ -271,27 +315,35 @@ class App(tk.Frame):
         "sum gray matter mask at current si voxel (x,y = center)"
         if self.gm_img is None:
             return None
-        x = int(x - self.voxdim[0]//2)
-        y = int(y - self.voxdim[1]//2)
-        z = int(self.pixdim[2]//2 - self.voxdim[2]//2)
-        #print(f"gm {self.gm_img.shape}: {x} {y} {z} = for {self.voxdim}")
-        vol = self.gm_img[x:(x+self.voxdim[0]), y:(y+self.voxdim[1]), z:(z+self.voxdim[2])]
+        x = int(x - self.voxdim[0] // 2)
+        y = int(y - self.voxdim[1] // 2)
+        z = int(self.pixdim[2] // 2 - self.voxdim[2] // 2)
+        # print(f"gm {self.gm_img.shape}: {x} {y} {z} = for {self.voxdim}")
+        vol = self.gm_img[
+            x : (x + self.voxdim[0]), y : (y + self.voxdim[1]), z : (z + self.voxdim[2])
+        ]
         return int(np.sum(vol))
 
     def draw_images(self):
         """redraw all images"""
         # redraw image
         for k, c in self.canvas.items():
-            if k[0:2] in ["ax", "si"]:
-                c.delete("ALL")
-                c.create_image(
-                    self.pixdim[0], self.pixdim[1], anchor="se", image=self.imgs[k]
-                )
-            elif k in ["spc"]:
-                # dont draw images on matplotlibs
-                pass
+            if k in ["spc"]:
+                continue  # dont draw images on matplotlibs
+            elif k[0:2] in ["ax", "si"]:
+                (i, j) = (0, 1)
+            elif k == "cor":
+                (i, j) = (1, 2)
+            elif k == "sag":
+                (i, j) = (0, 2)
             else:
-                print("no draw code for %s" % k)
+                print(f"WARNING: no draw code for canvas {k}")
+                continue
+            img_width = self.pixdim[i]
+            img_height = self.pixdim[j]
+            # print(f"canvas {k} has WxH {img_width}x{img_height}")
+            c.delete("ALL")
+            c.create_image(img_width, img_height, anchor="se", image=self.imgs[k])
 
     def update_roi_label(self):
         "set current roi label to include box position"
@@ -325,7 +377,9 @@ class App(tk.Frame):
         i = self.i_curroi.get()
         pos = np.array([self.coords[i].xy])
         roi = self.coords[i].roi
-        (spectrums, fnames) = self.siarray.ReconCoordinates3(self.scout, pos, specprefix="{roi}_temp")
+        (spectrums, fnames) = self.siarray.ReconCoordinates3(
+            self.scout, pos, specprefix="{roi}_temp"
+        )
         self.axes["spc"].clear()
         self.axes["spc"].plot(spectrums[0])
         self.canvas["spc"].draw()
@@ -343,21 +397,32 @@ class App(tk.Frame):
 
             # boxes on each canvas
             for k, c in self.canvas.items():
+                if "ax" in k:
+                    x1 = xy[0] - self.voxdim[0] / 2
+                    y1 = xy[1] - self.voxdim[1] / 2
+                    x2 = x1 + self.voxdim[0]
+                    y2 = y1 + self.voxdim[1]
+                elif "sag" in k:  # # YxZ
+                    x1 = xy[1] - self.voxdim[1] / 2
+                    y1 = self.pixdim[2] / 2 - self.voxdim[2] / 2
+                    x2 = x1 + self.voxdim[1]
+                    y2 = y1 + self.voxdim[2]
+                elif "cor" in k:  # XxZ
+                    x1 = xy[0] - self.voxdim[0] / 2
+                    y1 = self.pixdim[2] / 2 - self.voxdim[2] / 2
+                    x2 = x1 + self.voxdim[0]
+                    y2 = y1 + self.voxdim[2]
+
                 # skip matplotlib objects
-                if k in ["spc"]:
+                else:  # if k in ["spc"]:
                     continue
 
-                c.create_rectangle(
-                    xy[0] - self.voxdim[0] / 2,
-                    xy[1] - self.voxdim[1] / 2,
-                    xy[0] + self.voxdim[0] / 2,
-                    xy[1] + self.voxdim[1] / 2,
-                    outline=color,
-                )
+                c.create_rectangle(x1, y1, x2, y2, outline=color)
 
             # circles for independance
+            # TODO: want to fill semiopaque red if collision
             self.canvas["ax0"].create_circle(
-                xy[0], xy[1], self.voxdim[0], outline="red"
+                xy[0] - 1, xy[1] - 1, self.voxdim[0], outline="red"
             )
 
     def update(self):
@@ -390,7 +455,9 @@ class App(tk.Frame):
         "write positioned coordinates recon spectrum.xx.yy files"
         pos = np.array([c.sid3(self.scout.res) for c in self.coords])
         roi_names = [x.fname() for x in self.coords]
-        (specs, fnames) = self.siarray.ReconCoordinates3(self.scout, pos, self.outdir, specprefix=roi_names)
+        (specs, fnames) = self.siarray.ReconCoordinates3(
+            self.scout, pos, self.outdir, specprefix=roi_names
+        )
         print("== have specs ==")
         print(specs)
         print("== running lcmodel ==")
@@ -400,6 +467,7 @@ class App(tk.Frame):
     def goto_docs(self):
         "open up help window"
         import webbrowser
+
         webbrowser.open("https://github.com/LabNeuroCogDevel/MRSIcoord.py#notes")
         return
 
@@ -516,7 +584,8 @@ if __name__ == "__main__":
 
     root = tk.Tk()
     app = App(
-        master=root, roixy_list=pargs.rois,
+        master=root,
+        roixy_list=pargs.rois,
         ref=pargs.ref_fname,
         si=pargs.si_fname,
         gm_mask=pargs.gm_file,
