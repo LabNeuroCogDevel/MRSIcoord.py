@@ -205,13 +205,14 @@ class App(tk.Frame):
         def mklmd(k):
             return lambda e: self.img_click(k, e)
 
-        # special keys only on main axial
-        self.canvas["ax0"].bind("m", lambda e: self.toggle_mask())
-        self.canvas["ax0"].bind("<Return>", lambda e: self.inc_roi_selected())
-        self.canvas["ax0"].bind("<Up>", lambda e: self.move_roi(y=-1))
-        self.canvas["ax0"].bind("<Down>", lambda e: self.move_roi(y=1))
-        self.canvas["ax0"].bind("<Left>", lambda e: self.move_roi(x=-1))
-        self.canvas["ax0"].bind("<Right>", lambda e: self.move_roi(x=1))
+        # special keys only on axials
+        for ax in ["ax0", "ax-", "ax+"]:
+            self.canvas[ax].bind("m", lambda e: self.toggle_mask())
+            self.canvas[ax].bind("<Return>", lambda e: self.inc_roi_selected())
+            self.canvas[ax].bind("<Up>", lambda e: self.move_roi(y=-1))
+            self.canvas[ax].bind("<Down>", lambda e: self.move_roi(y=1))
+            self.canvas[ax].bind("<Left>", lambda e: self.move_roi(x=-1))
+            self.canvas[ax].bind("<Right>", lambda e: self.move_roi(x=1))
 
         # add click to all images
         # left to place, right to go to next roi
@@ -560,6 +561,12 @@ def parse_args(args):
         help="resolution of SI (matrix size, symetrical)",
     )
 
+    parser.add_argument(
+        "--outdir",
+        default="out/",
+        help="directory to save extracted spectrum and LCModel files",
+    )
+
     pargs = parser.parse_args(args)
 
     rois = read_rois(pargs.rois_list, pargs.roi_file)
@@ -590,5 +597,6 @@ if __name__ == "__main__":
         si=pargs.si_fname,
         gm_mask=pargs.gm_file,
         sires=pargs.sires,
+        outdir=pargs.outdir,
     )
     app.mainloop()
